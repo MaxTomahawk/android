@@ -113,18 +113,30 @@ internal abstract class TileExtensions : TileService() {
                 val tileData = tileDao.get(tileId.value)
                 if (tileData != null &&
                     tileData.isSetup &&
-                    tileData.entityId.split('.')[0] in toggleDomainsWithLock &&
                     serverManager.getServer(tileData.serverId) != null
                 ) {
-                    serverManager.integrationRepository(
-                        tileData.serverId,
-                    ).getEntityUpdates(listOf(tileData.entityId))?.collect {
-                        tile.state =
-                            if (it.isActive()) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-                        getTileIcon(tileData.iconName, it, applicationContext)?.let { icon ->
-                            tile.icon = Icon.createWithBitmap(icon)
+                    val repository = serverManager.integrationRepository(tileData.serverId)
+
+                    launch {
+                        repository.getEntityUpdates(listOf(tileData.entityId))?.collect {
+                            updateTileFromEntity(tile, tileData, it)
                         }
-                        tile.updateTile()
+                    }
+
+                    launch {
+                        observeTemplate(tileData.label) { rendered ->
+                            tile.label = rendered
+                            tile.updateTile()
+                        }
+                    }
+
+                    if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
+                        launch {
+                            observeTemplate(tileData.subtitle) { rendered ->
+                                tile.subtitle = rendered
+                                tile.updateTile()
+                            }
+                        }
                     }
                 }
             }
@@ -148,9 +160,10 @@ internal abstract class TileExtensions : TileService() {
         val tileData = tileDao.get(tileId.value)
         try {
             return if (tileData != null && tileData.isSetup) {
-                tile.label = tileData.label
+                val repository = serverManager.integrationRepository(tileData.serverId)
+                tile.label = renderTileText(tileData.label)
                 if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
-                    tile.subtitle = tileData.subtitle
+                    tile.subtitle = renderTileText(tileData.subtitle)
                 }
                 val state: Entity? =
                     if (
@@ -159,7 +172,7 @@ internal abstract class TileExtensions : TileService() {
                     ) {
                         withContext(Dispatchers.IO) {
                             try {
-                                serverManager.integrationRepository(tileData.serverId).getEntity(tileData.entityId)
+                                repository.getEntity(tileData.entityId)
                             } catch (e: Exception) {
                                 Timber.e(e, "Unable to get state for tile")
                                 null
@@ -180,6 +193,9 @@ internal abstract class TileExtensions : TileService() {
 
                 getTileIcon(tileData.iconName, state, context)?.let { icon ->
                     tile.icon = Icon.createWithBitmap(icon)
+                }
+                if (SdkVersion.isAtLeast(Build.VERSION_CODES.R)) {
+                    tile.stateDescription = state?.state
                 }
                 Timber.d("Tile data set for tile ID: $tileId")
                 tile.updateTile()
@@ -207,6 +223,43 @@ internal abstract class TileExtensions : TileService() {
             return false
         }
     }
+
+    private suspend fun renderTileText(value: String?): String? {
+        if (value == null || !value.isTileTemplate()) return value
+        return try {
+            serverManager.integrationRepository(
+                checkNotNull(tileDao.get(tileId.value)?.serverId),
+            ).renderTemplate(value, emptyMap())
+        } catch (e: Exception) {
+            Timber.e(e, "Unable to render template for tile ID: $tileId")
+            value
+        }
+    }
+
+    private suspend fun observeTemplate(value: String?, onUpdate: (String?) -> Unit) {
+        if (value == null || !value.isTileTemplate()) return
+        try {
+            val tileData = tileDao.get(tileId.value) ?: return
+            serverManager.integrationRepository(tileData.serverId).getTemplateUpdates(value)?.collect(onUpdate)
+        } catch (e: Exception) {
+            Timber.e(e, "Unable to observe template for tile ID: $tileId")
+        }
+    }
+
+    private fun updateTileFromEntity(tile: Tile, tileData: TileEntity, entity: Entity) {
+        if (tileData.entityId.split('.')[0] in toggleDomainsWithLock) {
+            tile.state = if (entity.isActive()) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        }
+        if (SdkVersion.isAtLeast(Build.VERSION_CODES.R)) {
+            tile.stateDescription = entity.state
+        }
+        getTileIcon(tileData.iconName, entity, applicationContext)?.let { icon ->
+            tile.icon = Icon.createWithBitmap(icon)
+        }
+        tile.updateTile()
+    }
+
+    private fun String.isTileTemplate(): Boolean = contains("{{") || contains("{%")
 
     private suspend fun tileClicked(tile: Tile, isUnlock: Boolean) {
         Timber.d("Click detected for tile ID: $tileId")
