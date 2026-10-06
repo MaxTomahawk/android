@@ -61,7 +61,7 @@ class TilePreferenceActivity : BaseActivity() {
 
             val intent = if (!serverManager.isRegistered()) {
                 Intent(this@TilePreferenceActivity, LaunchActivity::class.java)
-            } else if (tileData?.isSetup == true) {
+            } else if (tileData?.isSetup == true && tileData.entityId.isNotBlank()) {
                 this@TilePreferenceActivity.intentLaunchWithNavigateTo(
                     target = FrontendTarget.EntityMoreInfo(tileData.entityId),
                     serverId = tileData.serverId,

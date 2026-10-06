@@ -26,10 +26,12 @@ import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.common.util.mdiName
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
+import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
 import io.homeassistant.companion.android.database.qs.numberedId
+import io.homeassistant.companion.android.database.qs.tapActionType
 import io.homeassistant.companion.android.database.qs.type
 import io.homeassistant.companion.android.qs.Tile1Service
 import io.homeassistant.companion.android.settings.qs.ManageTilesState.Companion.changeServer
@@ -115,8 +117,17 @@ internal class ManageTilesViewModel @Inject constructor(
                     tileAuthRequired = entity?.authRequired ?: false,
                     tileLabel = setupEntity?.label.orEmpty(),
                     tileSubtitle = setupEntity?.subtitle.orEmpty(),
-                    selectedEntityId = setupEntity?.entityId,
+                    selectedEntityId = setupEntity?.entityId?.takeIf { it.isNotBlank() },
+                    selectedStateEntityId = setupEntity?.stateEntityId?.takeIf { it.isNotBlank() },
                     selectedTileType = setupEntity?.type ?: TileType.Basic,
+                    selectedTapAction = setupEntity?.tapActionType ?: TileTapAction.Automatic,
+                    tileStateTemplate = setupEntity?.stateTemplate.orEmpty(),
+                    tileStateDescriptionTemplate = setupEntity?.stateDescriptionTemplate.orEmpty(),
+                    tileIconTemplate = setupEntity?.iconTemplate.orEmpty(),
+                    tileContentDescriptionTemplate = setupEntity?.contentDescriptionTemplate.orEmpty(),
+                    actionDomain = setupEntity?.actionDomain.orEmpty(),
+                    actionName = setupEntity?.actionName.orEmpty(),
+                    actionDataTemplate = setupEntity?.actionDataTemplate.orEmpty(),
                     customIcon = setupEntity?.iconName?.let { name -> Mdi.fromHaName(name) },
                     submitButtonLabel = if (!SdkVersion.isAtLeast(Build.VERSION_CODES.TIRAMISU) ||
                         entity?.added == true
@@ -141,6 +152,14 @@ internal class ManageTilesViewModel @Inject constructor(
 
     fun selectEntityId(entityId: String?) {
         _state.update { it.copy(selectedEntityId = entityId) }
+    }
+
+    fun selectStateEntityId(entityId: String?) {
+        _state.update { it.copy(selectedStateEntityId = entityId) }
+    }
+
+    fun selectTapAction(action: TileTapAction) {
+        _state.update { it.copy(selectedTapAction = action) }
     }
 
     fun selectTileType(tileType: TileType) {
@@ -175,6 +194,21 @@ internal class ManageTilesViewModel @Inject constructor(
     fun setTileLabel(value: String) = _state.update { it.copy(tileLabel = value) }
 
     fun setTileSubtitle(value: String) = _state.update { it.copy(tileSubtitle = value) }
+
+    fun setTileStateTemplate(value: String) = _state.update { it.copy(tileStateTemplate = value) }
+
+    fun setTileStateDescriptionTemplate(value: String) = _state.update { it.copy(tileStateDescriptionTemplate = value) }
+
+    fun setTileIconTemplate(value: String) = _state.update { it.copy(tileIconTemplate = value) }
+
+    fun setTileContentDescriptionTemplate(value: String) =
+        _state.update { it.copy(tileContentDescriptionTemplate = value) }
+
+    fun setActionDomain(value: String) = _state.update { it.copy(actionDomain = value) }
+
+    fun setActionName(value: String) = _state.update { it.copy(actionName = value) }
+
+    fun setActionDataTemplate(value: String) = _state.update { it.copy(actionDataTemplate = value) }
 
     fun setShouldVibrate(value: Boolean) = _state.update { it.copy(selectedShouldVibrate = value) }
 
@@ -233,13 +267,20 @@ internal class ManageTilesViewModel @Inject constructor(
         serverId = selectedServerId,
         added = existing?.added ?: false,
         iconName = customIcon?.mdiName,
-        entityId = checkNotNull(selectedEntityId) {
-            "EntityID should not be null when adding a tile, UI should forbid that"
-        },
+        entityId = selectedEntityId.orEmpty(),
         label = tileLabel,
         subtitle = tileSubtitle.ifBlank { null },
         shouldVibrate = selectedShouldVibrate,
         authRequired = tileAuthRequired,
         tileType = selectedTileType.storageValue,
+        stateEntityId = selectedStateEntityId,
+        stateTemplate = tileStateTemplate.ifBlank { null },
+        stateDescriptionTemplate = tileStateDescriptionTemplate.ifBlank { null },
+        iconTemplate = tileIconTemplate.ifBlank { null },
+        contentDescriptionTemplate = tileContentDescriptionTemplate.ifBlank { null },
+        tapAction = selectedTapAction.storageValue,
+        actionDomain = actionDomain.ifBlank { null },
+        actionName = actionName.ifBlank { null },
+        actionDataTemplate = actionDataTemplate.ifBlank { null },
     )
 }

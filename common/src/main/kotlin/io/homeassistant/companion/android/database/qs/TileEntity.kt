@@ -29,13 +29,44 @@ data class TileEntity(
     val authRequired: Boolean,
     @ColumnInfo(name = "tile_type", defaultValue = "'basic'")
     val tileType: String = TileType.Basic.storageValue,
+    @ColumnInfo(name = "state_entity_id")
+    val stateEntityId: String? = null,
+    @ColumnInfo(name = "state_template")
+    val stateTemplate: String? = null,
+    @ColumnInfo(name = "state_description_template")
+    val stateDescriptionTemplate: String? = null,
+    @ColumnInfo(name = "icon_template")
+    val iconTemplate: String? = null,
+    @ColumnInfo(name = "content_description_template")
+    val contentDescriptionTemplate: String? = null,
+    @ColumnInfo(name = "tap_action", defaultValue = "'automatic'")
+    val tapAction: String = TileTapAction.Automatic.storageValue,
+    @ColumnInfo(name = "action_domain")
+    val actionDomain: String? = null,
+    @ColumnInfo(name = "action_name")
+    val actionName: String? = null,
+    @ColumnInfo(name = "action_data_template")
+    val actionDataTemplate: String? = null,
 )
 
 val TileEntity.type: TileType
     get() = TileType.fromStorageValue(tileType)
 
+val TileEntity.tapActionType: TileTapAction
+    get() = TileTapAction.fromStorageValue(tapAction)
+
+val TileEntity.stateSourceEntityId: String
+    get() = stateEntityId?.takeIf { it.isNotBlank() } ?: entityId
+
 val TileEntity.isSetup: Boolean
-    get() = this.label.isNotBlank() && this.entityId.isNotBlank()
+    get() = label.isNotBlank() &&
+        when (type) {
+            TileType.Basic, TileType.Entity -> entityId.isNotBlank()
+            TileType.Template -> entityId.isNotBlank() ||
+                !stateTemplate.isNullOrBlank() ||
+                tapActionType == TileTapAction.Custom ||
+                tapActionType == TileTapAction.None
+        }
 
 val TileEntity.numberedId: Int
     get() = this.tileId.split("_")[1].toInt()

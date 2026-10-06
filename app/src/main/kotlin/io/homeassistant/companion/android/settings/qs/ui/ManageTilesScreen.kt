@@ -57,6 +57,7 @@ import io.homeassistant.companion.android.common.compose.theme.HARadius
 import io.homeassistant.companion.android.common.compose.theme.HATextStyle
 import io.homeassistant.companion.android.common.compose.theme.HAThemeForPreview
 import io.homeassistant.companion.android.common.compose.theme.LocalHAColorScheme
+import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.settings.qs.ManageTilesState
 import io.homeassistant.companion.android.settings.qs.ManageTilesViewModel
@@ -103,6 +104,15 @@ internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifi
         onTileLabelChange = viewModel::setTileLabel,
         onTileSubtitleChange = viewModel::setTileSubtitle,
         onSelectionChanged = viewModel::selectEntityId,
+        onStateEntityChanged = viewModel::selectStateEntityId,
+        onStateTemplateChange = viewModel::setTileStateTemplate,
+        onStateDescriptionTemplateChange = viewModel::setTileStateDescriptionTemplate,
+        onIconTemplateChange = viewModel::setTileIconTemplate,
+        onContentDescriptionTemplateChange = viewModel::setTileContentDescriptionTemplate,
+        onTapActionSelected = viewModel::selectTapAction,
+        onActionDomainChange = viewModel::setActionDomain,
+        onActionNameChange = viewModel::setActionName,
+        onActionDataTemplateChange = viewModel::setActionDataTemplate,
         onShowIconDialog = { showIconDialog = true },
         onResetIcon = { viewModel.selectIcon(null) },
         onShouldVibrateChange = viewModel::setShouldVibrate,
@@ -123,6 +133,15 @@ internal fun ManageTilesContent(
     onTileLabelChange: (String) -> Unit,
     onTileSubtitleChange: (String) -> Unit,
     onSelectionChanged: (String?) -> Unit,
+    onStateEntityChanged: (String?) -> Unit,
+    onStateTemplateChange: (String) -> Unit,
+    onStateDescriptionTemplateChange: (String) -> Unit,
+    onIconTemplateChange: (String) -> Unit,
+    onContentDescriptionTemplateChange: (String) -> Unit,
+    onTapActionSelected: (TileTapAction) -> Unit,
+    onActionDomainChange: (String) -> Unit,
+    onActionNameChange: (String) -> Unit,
+    onActionDataTemplateChange: (String) -> Unit,
     onShowIconDialog: () -> Unit,
     onResetIcon: () -> Unit,
     onShouldVibrateChange: (Boolean) -> Unit,
@@ -169,6 +188,15 @@ internal fun ManageTilesContent(
             TileConfigContent(
                 state = state,
                 onSelectionChanged = onSelectionChanged,
+                onStateEntityChanged = onStateEntityChanged,
+                onStateTemplateChange = onStateTemplateChange,
+                onStateDescriptionTemplateChange = onStateDescriptionTemplateChange,
+                onIconTemplateChange = onIconTemplateChange,
+                onContentDescriptionTemplateChange = onContentDescriptionTemplateChange,
+                onTapActionSelected = onTapActionSelected,
+                onActionDomainChange = onActionDomainChange,
+                onActionNameChange = onActionNameChange,
+                onActionDataTemplateChange = onActionDataTemplateChange,
                 onAuthRequiredChange = onAuthRequiredChange,
                 onShowIconDialog = onShowIconDialog,
                 onResetIcon = onResetIcon,
@@ -261,6 +289,15 @@ private fun ColumnScope.TileLabelContent(
 private fun ColumnScope.TileConfigContent(
     state: ManageTilesState,
     onSelectionChanged: (String?) -> Unit,
+    onStateEntityChanged: (String?) -> Unit,
+    onStateTemplateChange: (String) -> Unit,
+    onStateDescriptionTemplateChange: (String) -> Unit,
+    onIconTemplateChange: (String) -> Unit,
+    onContentDescriptionTemplateChange: (String) -> Unit,
+    onTapActionSelected: (TileTapAction) -> Unit,
+    onActionDomainChange: (String) -> Unit,
+    onActionNameChange: (String) -> Unit,
+    onActionDataTemplateChange: (String) -> Unit,
     onShowIconDialog: () -> Unit,
     onResetIcon: () -> Unit,
     onShouldVibrateChange: (Boolean) -> Unit,
@@ -272,6 +309,84 @@ private fun ColumnScope.TileConfigContent(
         onSelectionChanged = onSelectionChanged,
         addButtonText = stringResource(commonR.string.tile_entity),
     )
+
+    if (state.selectedTileType != TileType.Basic) {
+        EntityPicker(
+            displayState = state.entityDisplayState,
+            selectedEntityId = state.selectedStateEntityId,
+            onSelectionChanged = onStateEntityChanged,
+            addButtonText = stringResource(commonR.string.tile_state_entity),
+        )
+
+        val templateHint = @Composable {
+            Text(text = stringResource(commonR.string.tile_template_hint))
+        }
+        HATextField(
+            value = state.tileStateTemplate,
+            onValueChange = onStateTemplateChange,
+            label = { Text(text = stringResource(commonR.string.tile_state_template)) },
+            supportingText = templateHint,
+            maxLines = 3,
+        )
+        HATextField(
+            value = state.tileStateDescriptionTemplate,
+            onValueChange = onStateDescriptionTemplateChange,
+            label = { Text(text = stringResource(commonR.string.tile_state_description_template)) },
+            supportingText = templateHint,
+            maxLines = 3,
+        )
+        HATextField(
+            value = state.tileIconTemplate,
+            onValueChange = onIconTemplateChange,
+            label = { Text(text = stringResource(commonR.string.tile_icon_template)) },
+            supportingText = templateHint,
+            maxLines = 3,
+        )
+        HATextField(
+            value = state.tileContentDescriptionTemplate,
+            onValueChange = onContentDescriptionTemplateChange,
+            label = { Text(text = stringResource(commonR.string.tile_content_description_template)) },
+            supportingText = templateHint,
+            maxLines = 3,
+        )
+
+        val tapActions: List<HADropdownItem<TileTapAction>> = listOf(
+            HADropdownItem(TileTapAction.Automatic, stringResource(commonR.string.tile_action_automatic)),
+            HADropdownItem(TileTapAction.MoreInfo, stringResource(commonR.string.tile_action_more_info)),
+            HADropdownItem(TileTapAction.Custom, stringResource(commonR.string.tile_action_custom)),
+            HADropdownItem(TileTapAction.None, stringResource(commonR.string.tile_action_none)),
+        )
+        HADropdownMenu(
+            items = tapActions,
+            selectedKey = state.selectedTapAction,
+            onItemSelected = onTapActionSelected,
+            label = stringResource(commonR.string.tile_tap_action),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        if (state.selectedTapAction == TileTapAction.Custom) {
+            HATextField(
+                value = state.actionDomain,
+                onValueChange = onActionDomainChange,
+                label = { Text(text = stringResource(commonR.string.tile_action_domain)) },
+                maxLines = 1,
+            )
+            HATextField(
+                value = state.actionName,
+                onValueChange = onActionNameChange,
+                label = { Text(text = stringResource(commonR.string.tile_action_name)) },
+                maxLines = 1,
+            )
+            HATextField(
+                value = state.actionDataTemplate,
+                onValueChange = onActionDataTemplateChange,
+                label = { Text(text = stringResource(commonR.string.tile_action_data_template)) },
+                supportingText = templateHint,
+                minLines = 2,
+                maxLines = 6,
+            )
+        }
+    }
 
     TileIconRow(
         selectedIcon = state.selectedIcon,
@@ -389,6 +504,15 @@ private fun ManageTilesPreview() {
             onTileLabelChange = {},
             onTileSubtitleChange = {},
             onSelectionChanged = {},
+            onStateEntityChanged = {},
+            onStateTemplateChange = {},
+            onStateDescriptionTemplateChange = {},
+            onIconTemplateChange = {},
+            onContentDescriptionTemplateChange = {},
+            onTapActionSelected = {},
+            onActionDomainChange = {},
+            onActionNameChange = {},
+            onActionDataTemplateChange = {},
             onShowIconDialog = {},
             onResetIcon = {},
             onShouldVibrateChange = {},
@@ -418,6 +542,15 @@ private fun ManageTilesUpdatePreview() {
             onTileLabelChange = {},
             onTileSubtitleChange = {},
             onSelectionChanged = {},
+            onStateEntityChanged = {},
+            onStateTemplateChange = {},
+            onStateDescriptionTemplateChange = {},
+            onIconTemplateChange = {},
+            onContentDescriptionTemplateChange = {},
+            onTapActionSelected = {},
+            onActionDomainChange = {},
+            onActionNameChange = {},
+            onActionDataTemplateChange = {},
             onShowIconDialog = {},
             onResetIcon = {},
             onShouldVibrateChange = {},
