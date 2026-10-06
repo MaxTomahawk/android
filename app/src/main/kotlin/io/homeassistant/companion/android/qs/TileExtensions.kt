@@ -30,15 +30,22 @@ import io.homeassistant.companion.android.common.data.integration.getIcon
 import io.homeassistant.companion.android.common.data.integration.isActive
 import io.homeassistant.companion.android.common.data.integration.onEntityPressedWithoutState
 import io.homeassistant.companion.android.common.data.servers.ServerManager
+import io.homeassistant.companion.android.common.util.MapAnySerializer
 import io.homeassistant.companion.android.common.util.SdkVersion
 import io.homeassistant.companion.android.common.util.fromHaName
+import io.homeassistant.companion.android.common.util.kotlinJsonMapper
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
+import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
 import io.homeassistant.companion.android.database.qs.numberedId
+import io.homeassistant.companion.android.database.qs.stateSourceEntityId
+import io.homeassistant.companion.android.database.qs.tapActionType
 import io.homeassistant.companion.android.database.qs.type
+import io.homeassistant.companion.android.frontend.navigation.FrontendTarget
+import io.homeassistant.companion.android.launch.intentLaunchWithNavigateTo
 import io.homeassistant.companion.android.settings.SettingsActivity
 import io.homeassistant.companion.android.settings.qs.TileId
 import io.homeassistant.companion.android.settings.qs.updateActiveTileServices
@@ -119,25 +126,21 @@ internal abstract class TileExtensions : TileService() {
                     serverManager.getServer(tileData.serverId) != null
                 ) {
                     val repository = serverManager.integrationRepository(tileData.serverId)
-
-                    launch {
-                        repository.getEntityUpdates(listOf(tileData.entityId))?.collect {
-                            updateTileFromEntity(tile, tileData, it)
-                        }
-                    }
-
-                    launch {
-                        observeTemplate(tileData.label) { rendered ->
-                            tile.label = rendered ?: tileData.label
-                            tile.updateTile()
-                        }
-                    }
-
-                    if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
+                    val entityIds = listOf(tileData.entityId, tileData.stateSourceEntityId)
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                    if (entityIds.isNotEmpty()) {
                         launch {
-                            observeTemplate(tileData.subtitle) { rendered ->
-                                tile.subtitle = rendered
-                                tile.updateTile()
+                            repository.getEntityUpdates(entityIds)?.collect {
+                                setTileData(tile)
+                            }
+                        }
+                    }
+
+                    tileData.dynamicTemplates().forEach { template ->
+                        launch {
+                            observeTemplate(template) {
+                                setTileData(tile)
                             }
                         }
                     }
@@ -164,40 +167,51 @@ internal abstract class TileExtensions : TileService() {
         try {
             return if (tileData != null && tileData.isSetup) {
                 val repository = serverManager.integrationRepository(tileData.serverId)
-                tile.label = renderTileText(tileData.label) ?: tileData.label
-                if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
-                    tile.subtitle = renderTileText(tileData.subtitle)
+                val mainEntity = tileData.entityId.takeIf { it.isNotBlank() }?.let { entityId ->
+                    withContext(Dispatchers.IO) {
+                        try {
+                            repository.getEntity(entityId)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Timber.w(e, "Unable to get entity $entityId for tile ID: $tileId")
+                            null
+                        }
+                    }
                 }
-                val usesEntityState = tileData.type == TileType.Entity ||
-                    tileData.entityId.substringBefore('.') in toggleDomainsWithLock
-                val state: Entity? =
-                    if (usesEntityState || tileData.iconName == null) {
+                val stateEntity = if (tileData.stateSourceEntityId == tileData.entityId) {
+                    mainEntity
+                } else {
+                    tileData.stateSourceEntityId.takeIf { it.isNotBlank() }?.let { entityId ->
                         withContext(Dispatchers.IO) {
                             try {
-                                repository.getEntity(tileData.entityId)
+                                repository.getEntity(entityId)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
-                                Timber.e(e, "Unable to get state for tile")
+                                Timber.w(e, "Unable to get state entity $entityId for tile ID: $tileId")
                                 null
                             }
                         }
-                    } else {
-                        null
                     }
-                tile.state = if (usesEntityState) {
-                    when {
-                        state?.isActive() == true -> Tile.STATE_ACTIVE
-                        state?.state != null && !state.isActive() -> Tile.STATE_INACTIVE
-                        else -> Tile.STATE_UNAVAILABLE
-                    }
-                } else {
-                    Tile.STATE_INACTIVE
                 }
 
-                getTileIcon(tileData.iconName, state, context)?.let { icon ->
+                val label = renderTileText(tileData.label) ?: tileData.label
+                tile.label = label
+                if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
+                    tile.subtitle = renderTileText(tileData.subtitle)
+                }
+                tile.contentDescription = renderTileText(tileData.contentDescriptionTemplate) ?: label
+
+                tile.state = resolveTileState(tileData, stateEntity)
+
+                val renderedIcon = renderTileText(tileData.iconTemplate)?.takeIf { it.isNotBlank() }
+                getTileIcon(renderedIcon ?: tileData.iconName, mainEntity ?: stateEntity, context)?.let { icon ->
                     tile.icon = Icon.createWithBitmap(icon)
                 }
                 if (SdkVersion.isAtLeast(Build.VERSION_CODES.R)) {
-                    tile.stateDescription = state?.state
+                    tile.stateDescription =
+                        renderTileText(tileData.stateDescriptionTemplate) ?: stateEntity?.state
                 }
                 Timber.d("Tile data set for tile ID: $tileId")
                 tile.updateTile()
@@ -220,6 +234,8 @@ internal abstract class TileExtensions : TileService() {
                 tile.updateTile()
                 false
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.e(e, "Unable to set tile data for tile ID: $tileId")
             return false
@@ -239,7 +255,7 @@ internal abstract class TileExtensions : TileService() {
         }
     }
 
-    private suspend fun observeTemplate(value: String?, onUpdate: (String?) -> Unit) {
+    private suspend fun observeTemplate(value: String?, onUpdate: suspend (String?) -> Unit) {
         if (value == null || !value.isTileTemplate()) return
         try {
             val tileData = tileDao.get(tileId.value) ?: return
@@ -250,17 +266,35 @@ internal abstract class TileExtensions : TileService() {
         }
     }
 
-    private fun updateTileFromEntity(tile: Tile, tileData: TileEntity, entity: Entity) {
-        if (tileData.type == TileType.Entity || tileData.entityId.substringBefore('.') in toggleDomainsWithLock) {
-            tile.state = if (entity.isActive()) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+    private suspend fun resolveTileState(tileData: TileEntity, entity: Entity?): Int {
+        val templateState = tileData.stateTemplate?.takeIf { it.isNotBlank() }?.let { renderTileText(it) }
+        if (templateState != null) return templateState.toTileState()
+
+        val usesEntityState = tileData.type == TileType.Entity ||
+            (tileData.type == TileType.Template && tileData.entityId.isNotBlank()) ||
+            tileData.entityId.substringBefore('.') in toggleDomainsWithLock
+        if (!usesEntityState) return Tile.STATE_INACTIVE
+
+        return when {
+            entity == null || entity.state in setOf("unavailable", "unknown") -> Tile.STATE_UNAVAILABLE
+            entity.isActive() -> Tile.STATE_ACTIVE
+            else -> Tile.STATE_INACTIVE
         }
-        if (SdkVersion.isAtLeast(Build.VERSION_CODES.R)) {
-            tile.stateDescription = entity.state
-        }
-        getTileIcon(tileData.iconName, entity, applicationContext)?.let { icon ->
-            tile.icon = Icon.createWithBitmap(icon)
-        }
-        tile.updateTile()
+    }
+
+    private fun TileEntity.dynamicTemplates(): List<String> = listOfNotNull(
+        label.takeIf { it.isTileTemplate() },
+        subtitle?.takeIf { it.isTileTemplate() },
+        stateTemplate?.takeIf { it.isTileTemplate() },
+        stateDescriptionTemplate?.takeIf { it.isTileTemplate() },
+        iconTemplate?.takeIf { it.isTileTemplate() },
+        contentDescriptionTemplate?.takeIf { it.isTileTemplate() },
+    ).distinct()
+
+    private fun String.toTileState(): Int = when (trim().lowercase()) {
+        "active", "on", "true", "1" -> Tile.STATE_ACTIVE
+        "unavailable", "unknown", "none", "null" -> Tile.STATE_UNAVAILABLE
+        else -> Tile.STATE_INACTIVE
     }
 
     private fun String.isTileTemplate(): Boolean = contains("{{") || contains("{%")
@@ -288,30 +322,19 @@ internal abstract class TileExtensions : TileService() {
         }
 
         val hasTile = setTileData(tile)
-        val needsUpdate = tileData != null && tileData.entityId.split('.')[0] !in toggleDomainsWithLock
         if (hasTile) {
             if (tileData?.serverId == null || serverManager.getServer(tileData.serverId) == null) {
                 tileClickedError(tileData, null)
                 return
             }
-            if (needsUpdate) {
-                tile.state = Tile.STATE_ACTIVE
-                tile.updateTile()
-            }
-            withContext(Dispatchers.IO) {
-                try {
-                    onEntityPressedWithoutState(
-                        tileData.entityId,
-                        serverManager.integrationRepository(tileData.serverId),
-                    )
-                    Timber.d("Service call sent for tile ID: $tileId")
-                } catch (e: Exception) {
-                    tileClickedError(tileData, e)
-                }
-            }
-            if (needsUpdate) {
-                tile.state = Tile.STATE_INACTIVE
-                tile.updateTile()
+            try {
+                performTileAction(tileData)
+                setTileData(tile)
+                Timber.d("Tile action completed for tile ID: $tileId")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                tileClickedError(tileData, e)
             }
         } else {
             Timber.d("No tile data found for tile ID: $tileId")
@@ -334,6 +357,63 @@ internal abstract class TileExtensions : TileService() {
                     ),
                 )
             }
+        }
+    }
+
+    private suspend fun performTileAction(tileData: TileEntity) {
+        when (tileData.tapActionType) {
+            TileTapAction.Automatic -> {
+                require(tileData.entityId.isNotBlank()) { "Automatic tile action requires an entity" }
+                withContext(Dispatchers.IO) {
+                    onEntityPressedWithoutState(
+                        tileData.entityId,
+                        serverManager.integrationRepository(tileData.serverId),
+                    )
+                }
+            }
+
+            TileTapAction.MoreInfo -> {
+                require(tileData.entityId.isNotBlank()) { "More-info tile action requires an entity" }
+                val intent = applicationContext.intentLaunchWithNavigateTo(
+                    FrontendTarget.EntityMoreInfo(tileData.entityId),
+                    tileData.serverId,
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                }
+                withContext(Dispatchers.Main) {
+                    TileServiceCompat.startActivityAndCollapse(
+                        this@TileExtensions,
+                        PendingIntentActivityWrapper(
+                            applicationContext,
+                            tileData.tileId.hashCode(),
+                            intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT,
+                            false,
+                        ),
+                    )
+                }
+            }
+
+            TileTapAction.Custom -> {
+                val domain = requireNotNull(tileData.actionDomain?.takeIf { it.isNotBlank() }) {
+                    "Custom tile action requires a domain"
+                }
+                val action = requireNotNull(tileData.actionName?.takeIf { it.isNotBlank() }) {
+                    "Custom tile action requires an action"
+                }
+                val renderedData = renderTileText(tileData.actionDataTemplate)?.trim()
+                val data = if (renderedData.isNullOrBlank()) {
+                    emptyMap()
+                } else {
+                    kotlinJsonMapper.decodeFromString<Map<String, Any?>>(MapAnySerializer, renderedData)
+                }
+                withContext(Dispatchers.IO) {
+                    serverManager.integrationRepository(tileData.serverId).callAction(domain, action, data)
+                }
+            }
+
+            TileTapAction.None -> Unit
         }
     }
 
