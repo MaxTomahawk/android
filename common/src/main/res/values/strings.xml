@@ -976,6 +976,10 @@
     <string name="tile_server">Select a server*</string>
     <string name="tile_slot_label">%1$s (%2$s)</string>
     <string name="tile_subtitle">Tile subtitle</string>
+    <string name="tile_type">Tile type</string>
+    <string name="tile_type_basic">Basic</string>
+    <string name="tile_type_entity">Entity</string>
+    <string name="tile_type_template">Template</string>
     <string name="tile_updated">Tile data updated</string>
     <string name="tiles">Tiles</string>
     <string name="toast_message">%1$s was selected</string>

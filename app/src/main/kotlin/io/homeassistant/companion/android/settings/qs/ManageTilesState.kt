@@ -8,6 +8,7 @@ import io.homeassistant.companion.android.common.compose.composable.HADropdownIt
 import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayState
 import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayWithContext
 import io.homeassistant.companion.android.common.data.servers.ServerManager
+import io.homeassistant.companion.android.database.qs.TileType
 
 /** A tile slot with the label of its configured tile, ready to be displayed in the slot picker. */
 internal data class TileSlotItem(val id: TileId, @StringRes val nameRes: Int, val label: String?) {
@@ -25,6 +26,7 @@ internal data class ManageTilesState(
     val entityDisplayState: EntityDisplayState<EntityDisplayWithContext> = EntityDisplayState.Loading,
     val customIcon: MdiIcon? = null,
     val selectedEntityId: String? = null,
+    val selectedTileType: TileType = TileType.Basic,
     val tileLabel: String = "",
     val tileSubtitle: String = "",
     val submitButtonLabel: Int = commonR.string.tile_save,

@@ -25,9 +25,11 @@ import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.common.util.mdiName
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
+import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
 import io.homeassistant.companion.android.database.qs.numberedId
+import io.homeassistant.companion.android.database.qs.type
 import io.homeassistant.companion.android.qs.Tile1Service
 import io.homeassistant.companion.android.settings.qs.ManageTilesState.Companion.changeServer
 import java.util.concurrent.Executors
@@ -113,6 +115,7 @@ internal class ManageTilesViewModel @Inject constructor(
                     tileLabel = setupEntity?.label.orEmpty(),
                     tileSubtitle = setupEntity?.subtitle.orEmpty(),
                     selectedEntityId = setupEntity?.entityId,
+                    selectedTileType = setupEntity?.type ?: TileType.Basic,
                     customIcon = setupEntity?.iconName?.let { name -> Mdi.fromHaName(name) },
                     submitButtonLabel = if (!SdkVersion.isAtLeast(Build.VERSION_CODES.TIRAMISU) ||
                         entity?.added == true
@@ -137,6 +140,10 @@ internal class ManageTilesViewModel @Inject constructor(
 
     fun selectEntityId(entityId: String?) {
         _state.update { it.copy(selectedEntityId = entityId) }
+    }
+
+    fun selectTileType(tileType: TileType) {
+        _state.update { it.copy(selectedTileType = tileType) }
     }
 
     /** Sets the custom icon of the tile, or clears it so the icon of the selected entity is used instead. */
@@ -226,5 +233,6 @@ internal class ManageTilesViewModel @Inject constructor(
         subtitle = tileSubtitle.ifBlank { null },
         shouldVibrate = selectedShouldVibrate,
         authRequired = tileAuthRequired,
+        tileType = selectedTileType.storageValue,
     )
 }

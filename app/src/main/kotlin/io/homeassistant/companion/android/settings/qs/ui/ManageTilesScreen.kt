@@ -57,6 +57,7 @@ import io.homeassistant.companion.android.common.compose.theme.HARadius
 import io.homeassistant.companion.android.common.compose.theme.HATextStyle
 import io.homeassistant.companion.android.common.compose.theme.HAThemeForPreview
 import io.homeassistant.companion.android.common.compose.theme.LocalHAColorScheme
+import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.settings.qs.ManageTilesState
 import io.homeassistant.companion.android.settings.qs.ManageTilesViewModel
 import io.homeassistant.companion.android.settings.qs.TileId
@@ -97,6 +98,7 @@ internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifi
         state = state,
         submitEnabled = state.submitEnabled,
         onTileSelected = viewModel::selectTile,
+        onTileTypeSelected = viewModel::selectTileType,
         onServerSelected = viewModel::selectServerId,
         onTileLabelChange = viewModel::setTileLabel,
         onTileSubtitleChange = viewModel::setTileSubtitle,
@@ -116,6 +118,7 @@ internal fun ManageTilesContent(
     state: ManageTilesState,
     submitEnabled: Boolean,
     onTileSelected: (id: TileId) -> Unit,
+    onTileTypeSelected: (TileType) -> Unit,
     onServerSelected: (Int) -> Unit,
     onTileLabelChange: (String) -> Unit,
     onTileSubtitleChange: (String) -> Unit,
@@ -148,6 +151,7 @@ internal fun ManageTilesContent(
             TileLabelContent(
                 state = state,
                 onTileSelected = onTileSelected,
+                onTileTypeSelected = onTileTypeSelected,
                 onTileLabelChange = onTileLabelChange,
                 onTileSubtitleChange = onTileSubtitleChange,
             )
@@ -187,6 +191,7 @@ internal fun ManageTilesContent(
 private fun ColumnScope.TileLabelContent(
     state: ManageTilesState,
     onTileSelected: (id: TileId) -> Unit,
+    onTileTypeSelected: (TileType) -> Unit,
     onTileLabelChange: (String) -> Unit,
     onTileSubtitleChange: (String) -> Unit,
 ) {
@@ -213,6 +218,19 @@ private fun ColumnScope.TileLabelContent(
     )
 
     HAHorizontalDivider()
+
+    val tileTypes: List<HADropdownItem<TileType>> = listOf(
+        HADropdownItem(TileType.Basic, stringResource(commonR.string.tile_type_basic)),
+        HADropdownItem(TileType.Entity, stringResource(commonR.string.tile_type_entity)),
+        HADropdownItem(TileType.Template, stringResource(commonR.string.tile_type_template)),
+    )
+    HADropdownMenu(
+        items = tileTypes,
+        selectedKey = state.selectedTileType,
+        onItemSelected = onTileTypeSelected,
+        label = stringResource(commonR.string.tile_type),
+        modifier = Modifier.fillMaxWidth(),
+    )
 
     Text(
         text = stringResource(commonR.string.tile_required_field_hint),
@@ -366,6 +384,7 @@ private fun ManageTilesPreview() {
             state = previewState,
             submitEnabled = false,
             onTileSelected = {},
+            onTileTypeSelected = {},
             onServerSelected = {},
             onTileLabelChange = {},
             onTileSubtitleChange = {},
@@ -394,6 +413,7 @@ private fun ManageTilesUpdatePreview() {
                 submitButtonLabel = commonR.string.tile_save,
             ),
             onTileSelected = {},
+            onTileTypeSelected = {},
             onServerSelected = {},
             onTileLabelChange = {},
             onTileSubtitleChange = {},
