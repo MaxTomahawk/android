@@ -41,6 +41,7 @@ import io.homeassistant.companion.android.settings.SettingsActivity
 import io.homeassistant.companion.android.settings.qs.TileId
 import io.homeassistant.companion.android.settings.qs.updateActiveTileServices
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
@@ -125,7 +126,7 @@ internal abstract class TileExtensions : TileService() {
 
                     launch {
                         observeTemplate(tileData.label) { rendered ->
-                            tile.label = rendered
+                            tile.label = rendered ?: tileData.label
                             tile.updateTile()
                         }
                     }
@@ -161,7 +162,7 @@ internal abstract class TileExtensions : TileService() {
         try {
             return if (tileData != null && tileData.isSetup) {
                 val repository = serverManager.integrationRepository(tileData.serverId)
-                tile.label = renderTileText(tileData.label)
+                tile.label = renderTileText(tileData.label) ?: tileData.label
                 if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
                     tile.subtitle = renderTileText(tileData.subtitle)
                 }
@@ -231,6 +232,7 @@ internal abstract class TileExtensions : TileService() {
                 checkNotNull(tileDao.get(tileId.value)?.serverId),
             ).renderTemplate(value, emptyMap())
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Timber.e(e, "Unable to render template for tile ID: $tileId")
             value
         }
@@ -242,6 +244,7 @@ internal abstract class TileExtensions : TileService() {
             val tileData = tileDao.get(tileId.value) ?: return
             serverManager.integrationRepository(tileData.serverId).getTemplateUpdates(value)?.collect(onUpdate)
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Timber.e(e, "Unable to observe template for tile ID: $tileId")
         }
     }
