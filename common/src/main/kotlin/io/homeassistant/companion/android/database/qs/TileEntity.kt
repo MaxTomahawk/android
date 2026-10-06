@@ -27,7 +27,12 @@ data class TileEntity(
     val shouldVibrate: Boolean,
     @ColumnInfo(name = "auth_required", defaultValue = "0")
     val authRequired: Boolean,
+    @ColumnInfo(name = "tile_type", defaultValue = "'basic'")
+    val tileType: String = TileType.Basic.storageValue,
 )
+
+val TileEntity.type: TileType
+    get() = TileType.fromStorageValue(tileType)
 
 val TileEntity.isSetup: Boolean
     get() = this.label.isNotBlank() && this.entityId.isNotBlank()
