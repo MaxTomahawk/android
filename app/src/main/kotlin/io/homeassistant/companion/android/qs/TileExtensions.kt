@@ -34,9 +34,11 @@ import io.homeassistant.companion.android.common.util.SdkVersion
 import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
+import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
 import io.homeassistant.companion.android.database.qs.numberedId
+import io.homeassistant.companion.android.database.qs.type
 import io.homeassistant.companion.android.settings.SettingsActivity
 import io.homeassistant.companion.android.settings.qs.TileId
 import io.homeassistant.companion.android.settings.qs.updateActiveTileServices
@@ -166,11 +168,10 @@ internal abstract class TileExtensions : TileService() {
                 if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
                     tile.subtitle = renderTileText(tileData.subtitle)
                 }
+                val usesEntityState = tileData.type == TileType.Entity ||
+                    tileData.entityId.substringBefore('.') in toggleDomainsWithLock
                 val state: Entity? =
-                    if (
-                        tileData.entityId.split(".")[0] in toggleDomainsWithLock ||
-                        tileData.iconName == null
-                    ) {
+                    if (usesEntityState || tileData.iconName == null) {
                         withContext(Dispatchers.IO) {
                             try {
                                 repository.getEntity(tileData.entityId)
@@ -182,14 +183,14 @@ internal abstract class TileExtensions : TileService() {
                     } else {
                         null
                     }
-                if (tileData.entityId.split('.')[0] in toggleDomainsWithLock) {
-                    tile.state = when {
+                tile.state = if (usesEntityState) {
+                    when {
                         state?.isActive() == true -> Tile.STATE_ACTIVE
                         state?.state != null && !state.isActive() -> Tile.STATE_INACTIVE
                         else -> Tile.STATE_UNAVAILABLE
                     }
                 } else {
-                    tile.state = Tile.STATE_INACTIVE
+                    Tile.STATE_INACTIVE
                 }
 
                 getTileIcon(tileData.iconName, state, context)?.let { icon ->
@@ -250,7 +251,7 @@ internal abstract class TileExtensions : TileService() {
     }
 
     private fun updateTileFromEntity(tile: Tile, tileData: TileEntity, entity: Entity) {
-        if (tileData.entityId.split('.')[0] in toggleDomainsWithLock) {
+        if (tileData.type == TileType.Entity || tileData.entityId.substringBefore('.') in toggleDomainsWithLock) {
             tile.state = if (entity.isActive()) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         }
         if (SdkVersion.isAtLeast(Build.VERSION_CODES.R)) {

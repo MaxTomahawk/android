@@ -17,6 +17,7 @@ import io.github.timoptr.mdiicons.MdiIcon
 import io.github.timoptr.mdiicons.toBitmap
 import io.homeassistant.companion.android.common.R as commonR
 import io.homeassistant.companion.android.common.compose.composable.HADropdownItem
+import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.display.EntitiesForDisplayManager
 import io.homeassistant.companion.android.common.data.integration.isUsableInTile
 import io.homeassistant.companion.android.common.data.servers.ServerManager
@@ -144,6 +145,7 @@ internal class ManageTilesViewModel @Inject constructor(
 
     fun selectTileType(tileType: TileType) {
         _state.update { it.copy(selectedTileType = tileType) }
+        loadEntities(_state.value.selectedServerId)
     }
 
     /** Sets the custom icon of the tile, or clears it so the icon of the selected entity is used instead. */
@@ -181,7 +183,12 @@ internal class ManageTilesViewModel @Inject constructor(
     private fun loadEntities(serverId: Int) {
         loadEntitiesJob?.cancel()
         loadEntitiesJob = viewModelScope.launch {
-            entitiesForDisplayManager.snapshotInContext(serverId) { it.isUsableInTile() }.collect { state ->
+            val filter = if (_state.value.selectedTileType == TileType.Basic) {
+                { entity: Entity -> entity.isUsableInTile() }
+            } else {
+                { _: Entity -> true }
+            }
+            entitiesForDisplayManager.snapshotInContext(serverId, filter).collect { state ->
                 _state.update { it.copy(entityDisplayState = state) }
             }
         }
