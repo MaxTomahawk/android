@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.Icon
-import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -15,6 +14,7 @@ import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
+import androidx.core.net.toUri
 import androidx.core.service.quicksettings.PendingIntentActivityWrapper
 import androidx.core.service.quicksettings.TileServiceCompat
 import dagger.hilt.EntryPoint
@@ -535,7 +535,7 @@ internal abstract class TileExtensions : TileService() {
 
             TileTapAction.Url -> {
                 val target = requireNotNull(url?.takeIf { it.isNotBlank() }) { "URL action requires a URL" }
-                launchFromTile(Intent(Intent.ACTION_VIEW, Uri.parse(target)), requestCode)
+                launchFromTile(Intent(Intent.ACTION_VIEW, target.toUri()), requestCode)
             }
 
             TileTapAction.Assist -> {

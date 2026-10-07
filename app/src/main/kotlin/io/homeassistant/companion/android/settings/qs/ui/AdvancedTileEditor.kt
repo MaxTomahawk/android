@@ -99,124 +99,126 @@ internal fun AdvancedVisualTileEditor(
     callbacks: AdvancedTileCallbacks,
     showVisualContent: Boolean = true,
 ) {
-    if (showVisualContent) {
-        TextPartsEditor(
-            title = stringResource(commonR.string.tile_label_content),
-            parts = state.labelParts,
-            attributes = state.entityAttributes,
-            onAdd = callbacks.addLabelPart,
-            onRemove = callbacks.removeLabelPart,
-            onUpdate = callbacks.updateLabelPart,
-            onMove = callbacks.moveLabelPart,
-        )
-        if (state.showSubtitle) {
+    Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE4)) {
+        if (showVisualContent) {
             TextPartsEditor(
-                title = stringResource(commonR.string.tile_subtitle_content),
-                parts = state.subtitleParts,
+                title = stringResource(commonR.string.tile_label_content),
+                parts = state.labelParts,
                 attributes = state.entityAttributes,
-                onAdd = callbacks.addSubtitlePart,
-                onRemove = callbacks.removeSubtitlePart,
-                onUpdate = callbacks.updateSubtitlePart,
-                onMove = callbacks.moveSubtitlePart,
+                onAdd = callbacks.addLabelPart,
+                onRemove = callbacks.removeLabelPart,
+                onUpdate = callbacks.updateLabelPart,
+                onMove = callbacks.moveLabelPart,
+            )
+            if (state.showSubtitle) {
+                TextPartsEditor(
+                    title = stringResource(commonR.string.tile_subtitle_content),
+                    parts = state.subtitleParts,
+                    attributes = state.entityAttributes,
+                    onAdd = callbacks.addSubtitlePart,
+                    onRemove = callbacks.removeSubtitlePart,
+                    onUpdate = callbacks.updateSubtitlePart,
+                    onMove = callbacks.moveSubtitlePart,
+                )
+            }
+
+            Text(text = stringResource(commonR.string.tile_active_states))
+            Text(text = stringResource(commonR.string.tile_active_states_hint))
+            state.activeStates.forEachIndexed { index, activeState ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    HATextField(
+                        value = activeState,
+                        onValueChange = { callbacks.updateActiveState(index, it) },
+                        label = { Text(stringResource(commonR.string.tile_state_value)) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    HAPlainButton(
+                        text = stringResource(commonR.string.tile_remove_content_part),
+                        onClick = { callbacks.removeActiveState(index) },
+                    )
+                }
+            }
+            HAPlainButton(
+                text = stringResource(commonR.string.tile_add_active_state),
+                onClick = callbacks.addActiveState,
+            )
+
+            Text(text = stringResource(commonR.string.tile_state_icons))
+            state.iconRules.forEachIndexed { index, rule ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    HATextField(
+                        value = rule.state,
+                        onValueChange = { callbacks.updateIconRuleState(index, it) },
+                        label = { Text(stringResource(commonR.string.tile_state_value)) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    HAPlainButton(
+                        text = rule.iconName.ifBlank { stringResource(commonR.string.tile_icon) },
+                        onClick = { callbacks.showIconRulePicker(index) },
+                    )
+                    HAPlainButton(
+                        text = stringResource(commonR.string.tile_remove_content_part),
+                        onClick = { callbacks.removeIconRule(index) },
+                    )
+                }
+            }
+            HAPlainButton(
+                text = stringResource(commonR.string.tile_add_state_icon),
+                onClick = callbacks.addIconRule,
             )
         }
 
-        Text(text = stringResource(commonR.string.tile_active_states))
-        Text(text = stringResource(commonR.string.tile_active_states_hint))
-        state.activeStates.forEachIndexed { index, activeState ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                HATextField(
-                    value = activeState,
-                    onValueChange = { callbacks.updateActiveState(index, it) },
-                    label = { Text(stringResource(commonR.string.tile_state_value)) },
-                    modifier = Modifier.weight(1f),
-                )
-                HAPlainButton(
-                    text = stringResource(commonR.string.tile_remove_content_part),
-                    onClick = { callbacks.removeActiveState(index) },
-                )
-            }
-        }
-        HAPlainButton(
-            text = stringResource(commonR.string.tile_add_active_state),
-            onClick = callbacks.addActiveState,
+        TileActionEditor(
+            title = stringResource(commonR.string.tile_tap_action),
+            actionType = state.selectedTapAction,
+            actions = state.availableActions,
+            selectedDomain = state.actionDomain,
+            selectedAction = state.actionName,
+            fieldValues = state.tapActionFieldValues,
+            targetEntityId = state.tapTargetEntityId,
+            targetDeviceId = state.tapTargetDeviceId,
+            targetAreaId = state.tapTargetAreaId,
+            navigationPath = state.tapNavigationPath,
+            url = state.tapUrl,
+            state = state,
+            onActionType = callbacks.selectTapAction,
+            onPerformAction = callbacks.selectTapPerformAction,
+            onField = callbacks.setTapActionField,
+            onTargetEntity = callbacks.setTapTargetEntity,
+            onTargetDevice = callbacks.setTapTargetDevice,
+            onTargetArea = callbacks.setTapTargetArea,
+            onNavigationPath = callbacks.setTapNavigationPath,
+            onUrl = callbacks.setTapUrl,
         )
-
-        Text(text = stringResource(commonR.string.tile_state_icons))
-        state.iconRules.forEachIndexed { index, rule ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                HATextField(
-                    value = rule.state,
-                    onValueChange = { callbacks.updateIconRuleState(index, it) },
-                    label = { Text(stringResource(commonR.string.tile_state_value)) },
-                    modifier = Modifier.weight(1f),
-                )
-                HAPlainButton(
-                    text = rule.iconName.ifBlank { stringResource(commonR.string.tile_icon) },
-                    onClick = { callbacks.showIconRulePicker(index) },
-                )
-                HAPlainButton(
-                    text = stringResource(commonR.string.tile_remove_content_part),
-                    onClick = { callbacks.removeIconRule(index) },
-                )
-            }
-        }
-        HAPlainButton(
-            text = stringResource(commonR.string.tile_add_state_icon),
-            onClick = callbacks.addIconRule,
+        TileActionEditor(
+            title = stringResource(commonR.string.tile_hold_action),
+            actionType = state.selectedHoldAction,
+            actions = state.availableActions,
+            selectedDomain = state.holdActionDomain,
+            selectedAction = state.holdActionName,
+            fieldValues = state.holdActionFieldValues,
+            targetEntityId = state.holdTargetEntityId,
+            targetDeviceId = state.holdTargetDeviceId,
+            targetAreaId = state.holdTargetAreaId,
+            navigationPath = state.holdNavigationPath,
+            url = state.holdUrl,
+            state = state,
+            onActionType = callbacks.selectHoldAction,
+            onPerformAction = callbacks.selectHoldPerformAction,
+            onField = callbacks.setHoldActionField,
+            onTargetEntity = callbacks.setHoldTargetEntity,
+            onTargetDevice = callbacks.setHoldTargetDevice,
+            onTargetArea = callbacks.setHoldTargetArea,
+            onNavigationPath = callbacks.setHoldNavigationPath,
+            onUrl = callbacks.setHoldUrl,
         )
     }
-
-    TileActionEditor(
-        title = stringResource(commonR.string.tile_tap_action),
-        actionType = state.selectedTapAction,
-        actions = state.availableActions,
-        selectedDomain = state.actionDomain,
-        selectedAction = state.actionName,
-        fieldValues = state.tapActionFieldValues,
-        targetEntityId = state.tapTargetEntityId,
-        targetDeviceId = state.tapTargetDeviceId,
-        targetAreaId = state.tapTargetAreaId,
-        navigationPath = state.tapNavigationPath,
-        url = state.tapUrl,
-        state = state,
-        onActionType = callbacks.selectTapAction,
-        onPerformAction = callbacks.selectTapPerformAction,
-        onField = callbacks.setTapActionField,
-        onTargetEntity = callbacks.setTapTargetEntity,
-        onTargetDevice = callbacks.setTapTargetDevice,
-        onTargetArea = callbacks.setTapTargetArea,
-        onNavigationPath = callbacks.setTapNavigationPath,
-        onUrl = callbacks.setTapUrl,
-    )
-    TileActionEditor(
-        title = stringResource(commonR.string.tile_hold_action),
-        actionType = state.selectedHoldAction,
-        actions = state.availableActions,
-        selectedDomain = state.holdActionDomain,
-        selectedAction = state.holdActionName,
-        fieldValues = state.holdActionFieldValues,
-        targetEntityId = state.holdTargetEntityId,
-        targetDeviceId = state.holdTargetDeviceId,
-        targetAreaId = state.holdTargetAreaId,
-        navigationPath = state.holdNavigationPath,
-        url = state.holdUrl,
-        state = state,
-        onActionType = callbacks.selectHoldAction,
-        onPerformAction = callbacks.selectHoldPerformAction,
-        onField = callbacks.setHoldActionField,
-        onTargetEntity = callbacks.setHoldTargetEntity,
-        onTargetDevice = callbacks.setHoldTargetDevice,
-        onTargetArea = callbacks.setHoldTargetArea,
-        onNavigationPath = callbacks.setHoldNavigationPath,
-        onUrl = callbacks.setHoldUrl,
-    )
 }
 
 @Composable

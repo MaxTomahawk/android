@@ -2,9 +2,9 @@ package io.homeassistant.companion.android.qs
 
 import android.content.ComponentName
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import androidx.core.net.toUri
 import androidx.core.os.BundleCompat
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
@@ -144,7 +144,7 @@ class TilePreferenceActivity : BaseActivity() {
                 TileTapAction.Url -> {
                     val url = tileData.holdUrl
                     if (!url.isNullOrBlank()) {
-                        launchAndFinish(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        launchAndFinish(Intent(Intent.ACTION_VIEW, url.toUri()))
                     } else {
                         finishWithoutAnimation()
                     }

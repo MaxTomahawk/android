@@ -199,12 +199,12 @@ internal fun ManageTilesContent(
     onActionNameChange: (String) -> Unit,
     onActionDataTemplateChange: (String) -> Unit,
     onShowIconDialog: () -> Unit,
-    advancedCallbacks: AdvancedTileCallbacks = NoopAdvancedTileCallbacks,
     onResetIcon: () -> Unit,
     onShouldVibrateChange: (Boolean) -> Unit,
     onAuthRequiredChange: (Boolean) -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
+    advancedCallbacks: AdvancedTileCallbacks = NoopAdvancedTileCallbacks,
 ) {
     Scaffold(
         modifier = modifier,
