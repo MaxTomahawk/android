@@ -630,6 +630,9 @@
             android:label="@string/tile_1"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -640,6 +643,9 @@
             android:label="@string/tile_2"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -650,6 +656,9 @@
             android:label="@string/tile_3"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -660,6 +669,9 @@
             android:label="@string/tile_4"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -670,6 +682,9 @@
             android:label="@string/tile_5"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -680,6 +695,9 @@
             android:label="@string/tile_6"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -690,6 +708,9 @@
             android:label="@string/tile_7"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -700,6 +721,9 @@
             android:label="@string/tile_8"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -710,6 +734,9 @@
             android:label="@string/tile_9"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -720,6 +747,9 @@
             android:label="@string/tile_10"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -730,6 +760,9 @@
             android:label="@string/tile_11"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -740,6 +773,9 @@
             android:label="@string/tile_12"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -751,6 +787,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -762,6 +801,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -773,6 +815,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -784,6 +829,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -795,6 +843,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -806,6 +857,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -817,6 +871,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -828,6 +885,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -839,6 +899,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -850,6 +913,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -861,6 +927,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -872,6 +941,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -883,6 +955,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -894,6 +969,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -905,6 +983,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -916,6 +997,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -927,6 +1011,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -938,6 +1025,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -949,6 +1039,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -960,6 +1053,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -971,6 +1067,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -982,6 +1081,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -993,6 +1095,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -1004,6 +1109,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -1015,6 +1123,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -1026,6 +1137,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -1037,6 +1151,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
@@ -1048,6 +1165,9 @@
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:enabled="false"
             android:exported="true">
+            <meta-data
+                android:name="android.service.quicksettings.TILE_CATEGORY"
+                android:value="android.service.quicksettings.CATEGORY_UTILITIES" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE"/>
             </intent-filter>
