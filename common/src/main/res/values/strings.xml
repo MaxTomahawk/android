@@ -1026,6 +1026,7 @@
     <string name="tile_move_content_up">Move up</string>
     <string name="tile_move_content_down">Move down</string>
     <string name="tile_content_part">Content %1$d</string>
+    <string name="tile_advanced_appearance">Advanced appearance</string>
     <string name="tile_state_icons">State-dependent icons</string>
     <string name="tile_add_state_icon">Add state icon</string>
     <string name="tile_state_value">Entity state</string>

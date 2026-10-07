@@ -2,11 +2,13 @@ package io.homeassistant.companion.android.settings.qs.ui
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -48,9 +50,8 @@ class ManageTilesTest {
             testScreen(addTileState) {
                 onNodeWithText(activity.getString(commonR.string.tile_server)).assertDoesNotExist()
                 onNodeWithContentDescription(activity.getString(commonR.string.undo)).assertDoesNotExist()
-                onNodeWithText(activity.getString(commonR.string.tile_subtitle_content), substring = true)
-                    .performScrollTo()
-                    .assertIsDisplayed()
+                onAllNodesWithText(activity.getString(commonR.string.tile_subtitle_content))
+                    .assertCountEquals(2)
                 onNodeWithText(activity.getString(commonR.string.tile_add)).performScrollTo().assertIsNotEnabled()
             }
         }

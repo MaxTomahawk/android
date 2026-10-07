@@ -5,16 +5,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import io.homeassistant.companion.android.common.R as commonR
+import io.homeassistant.companion.android.common.compose.composable.HADetails
 import io.homeassistant.companion.android.common.compose.composable.HADropdownItem
 import io.homeassistant.companion.android.common.compose.composable.HADropdownMenu
 import io.homeassistant.companion.android.common.compose.composable.HAPlainButton
+import io.homeassistant.companion.android.common.compose.composable.HASettingsCard
 import io.homeassistant.companion.android.common.compose.composable.HATextField
 import io.homeassistant.companion.android.common.compose.theme.HADimens
+import io.homeassistant.companion.android.common.compose.theme.HATextStyle
+import io.homeassistant.companion.android.common.compose.theme.LocalHAColorScheme
 import io.homeassistant.companion.android.common.data.integration.Action
 import io.homeassistant.companion.android.common.data.integration.ActionFields
 import io.homeassistant.companion.android.database.qs.TileControlDialogMode
@@ -136,56 +141,63 @@ internal fun AdvancedVisualTileEditor(
                 )
             }
 
-            Text(text = stringResource(commonR.string.tile_active_states))
-            Text(text = stringResource(commonR.string.tile_active_states_hint))
-            state.activeStates.forEachIndexed { index, activeState ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    HATextField(
-                        value = activeState,
-                        onValueChange = { callbacks.updateActiveState(index, it) },
-                        label = { Text(stringResource(commonR.string.tile_state_value)) },
-                        modifier = Modifier.weight(1f),
-                    )
+            HADetails(
+                title = stringResource(commonR.string.tile_advanced_appearance),
+                defaultExpanded = state.activeStates.isNotEmpty() || state.iconRules.isNotEmpty(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE3)) {
+                    SectionTitle(stringResource(commonR.string.tile_active_states))
+                    SupportingText(stringResource(commonR.string.tile_active_states_hint))
+                    state.activeStates.forEachIndexed { index, activeState ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            HATextField(
+                                value = activeState,
+                                onValueChange = { callbacks.updateActiveState(index, it) },
+                                label = { Text(stringResource(commonR.string.tile_state_value)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            HAPlainButton(
+                                text = stringResource(commonR.string.tile_remove_content_part),
+                                onClick = { callbacks.removeActiveState(index) },
+                            )
+                        }
+                    }
                     HAPlainButton(
-                        text = stringResource(commonR.string.tile_remove_content_part),
-                        onClick = { callbacks.removeActiveState(index) },
+                        text = stringResource(commonR.string.tile_add_active_state),
+                        onClick = callbacks.addActiveState,
                     )
-                }
-            }
-            HAPlainButton(
-                text = stringResource(commonR.string.tile_add_active_state),
-                onClick = callbacks.addActiveState,
-            )
 
-            Text(text = stringResource(commonR.string.tile_state_icons))
-            state.iconRules.forEachIndexed { index, rule ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    HATextField(
-                        value = rule.state,
-                        onValueChange = { callbacks.updateIconRuleState(index, it) },
-                        label = { Text(stringResource(commonR.string.tile_state_value)) },
-                        modifier = Modifier.weight(1f),
-                    )
+                    SectionTitle(stringResource(commonR.string.tile_state_icons))
+                    state.iconRules.forEachIndexed { index, rule ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            HATextField(
+                                value = rule.state,
+                                onValueChange = { callbacks.updateIconRuleState(index, it) },
+                                label = { Text(stringResource(commonR.string.tile_state_value)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            HAPlainButton(
+                                text = rule.iconName.ifBlank { stringResource(commonR.string.tile_icon) },
+                                onClick = { callbacks.showIconRulePicker(index) },
+                            )
+                            HAPlainButton(
+                                text = stringResource(commonR.string.tile_remove_content_part),
+                                onClick = { callbacks.removeIconRule(index) },
+                            )
+                        }
+                    }
                     HAPlainButton(
-                        text = rule.iconName.ifBlank { stringResource(commonR.string.tile_icon) },
-                        onClick = { callbacks.showIconRulePicker(index) },
-                    )
-                    HAPlainButton(
-                        text = stringResource(commonR.string.tile_remove_content_part),
-                        onClick = { callbacks.removeIconRule(index) },
+                        text = stringResource(commonR.string.tile_add_state_icon),
+                        onClick = callbacks.addIconRule,
                     )
                 }
             }
-            HAPlainButton(
-                text = stringResource(commonR.string.tile_add_state_icon),
-                onClick = callbacks.addIconRule,
-            )
         }
 
         TileActionEditor(
@@ -211,7 +223,9 @@ internal fun AdvancedVisualTileEditor(
             onUrl = callbacks.setTapUrl,
         )
         if (state.selectedTapAction == TileTapAction.Controls || state.selectedHoldAction == TileTapAction.Controls) {
-            ControlDialogEditor(state = state, callbacks = callbacks)
+            HASettingsCard {
+                ControlDialogEditor(state = state, callbacks = callbacks)
+            }
         }
 
         TileActionEditor(
@@ -250,11 +264,11 @@ private fun TextPartsEditor(
     onMove: (Int, Int) -> Unit,
 ) {
     if (parts.isEmpty()) {
-        HAPlainButton(text = stringResource(commonR.string.tile_advanced_content), onClick = onAdd)
+        HAPlainButton(text = title, onClick = onAdd)
         return
     }
 
-    Text(text = title)
+    SectionTitle(title)
     val sources = textSourceItems()
     val attributeItems = attributes.map { HADropdownItem(it, it) }
     parts.forEachIndexed { index, part ->
@@ -318,7 +332,7 @@ private fun TextPartsEditor(
 @Composable
 private fun ControlDialogEditor(state: ManageTilesState, callbacks: AdvancedTileCallbacks) {
     Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE3)) {
-        Text(text = stringResource(commonR.string.tile_control_dialog))
+        SectionTitle(stringResource(commonR.string.tile_control_dialog))
         HADropdownMenu(
             items = listOf(
                 HADropdownItem(
@@ -336,7 +350,7 @@ private fun ControlDialogEditor(state: ManageTilesState, callbacks: AdvancedTile
             modifier = Modifier.fillMaxWidth(),
         )
         if (state.controlDialogConfig.mode == TileControlDialogMode.AUTOMATIC) {
-            Text(text = stringResource(commonR.string.tile_control_dialog_automatic_hint))
+            SupportingText(stringResource(commonR.string.tile_control_dialog_automatic_hint))
         } else {
             val types = listOf(
                 HADropdownItem(TileControlType.ENTITY_STATE, stringResource(commonR.string.tile_control_entity_state)),
@@ -589,11 +603,17 @@ private fun ControlDialogActionDataEditor(
                     if (spec != null) {
                         val value = item.actionData[fieldKey]?.toFloatOrNull()?.coerceIn(spec.min, spec.max) ?: spec.min
                         Column {
-                            Text(label + ": " + formatSelectorNumber(value) + spec.unit.orEmpty())
+                            Text(
+                                text = label + ": " + formatSelectorNumber(value) + spec.unit.orEmpty(),
+                                style = HATextStyle.UserInput.copy(
+                                    color = LocalHAColorScheme.current.colorTextPrimary,
+                                ),
+                            )
                             Slider(
                                 value = value,
                                 onValueChange = { update(formatSelectorNumber(it)) },
                                 valueRange = spec.min..spec.max,
+                                colors = editorSliderColors(),
                             )
                         }
                     } else {
@@ -741,11 +761,17 @@ private fun TileActionEditor(
                             val value = fieldValues[fieldKey]?.toFloatOrNull()?.coerceIn(spec.min, spec.max)
                                 ?: spec.min
                             Column {
-                                Text(label + ": " + formatSelectorNumber(value) + spec.unit.orEmpty())
+                                Text(
+                                    text = label + ": " + formatSelectorNumber(value) + spec.unit.orEmpty(),
+                                    style = HATextStyle.UserInput.copy(
+                                        color = LocalHAColorScheme.current.colorTextPrimary,
+                                    ),
+                                )
                                 Slider(
                                     value = value,
                                     onValueChange = { onField(fieldKey, formatSelectorNumber(it)) },
                                     valueRange = spec.min..spec.max,
+                                    colors = editorSliderColors(),
                                 )
                             }
                         } else {
@@ -822,6 +848,34 @@ private fun Any?.targetSelectorTypes(): Set<String> = when (this) {
     is Map<*, *> -> keys.mapNotNull { it as? String }.filterTo(mutableSetOf()) { it in allTargetSelectorTypes }
         .ifEmpty { allTargetSelectorTypes }
     else -> allTargetSelectorTypes
+}
+
+@Composable
+private fun editorSliderColors() = SliderDefaults.colors(
+    thumbColor = LocalHAColorScheme.current.colorFillPrimaryLoudResting,
+    activeTrackColor = LocalHAColorScheme.current.colorFillPrimaryLoudResting,
+    inactiveTrackColor = LocalHAColorScheme.current.colorFillNeutralNormalResting,
+)
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text = text,
+        style = HATextStyle.UserInput.copy(
+            color = LocalHAColorScheme.current.colorTextPrimary,
+        ),
+    )
+}
+
+@Composable
+private fun SupportingText(text: String) {
+    Text(
+        text = text,
+        style = HATextStyle.BodyMedium.copy(
+            color = LocalHAColorScheme.current.colorTextSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+        ),
+    )
 }
 
 private fun ActionFields.selectorType(): String? = selector?.keys?.firstOrNull()

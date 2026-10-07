@@ -6,20 +6,21 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,7 +28,10 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,8 +41,15 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.homeassistant.companion.android.BaseActivity
 import io.homeassistant.companion.android.common.compose.composable.HADropdownItem
 import io.homeassistant.companion.android.common.compose.composable.HADropdownMenu
+import io.homeassistant.companion.android.common.compose.composable.HAFilledButton
+import io.homeassistant.companion.android.common.compose.composable.HAHorizontalDivider
+import io.homeassistant.companion.android.common.compose.composable.HASettingsCard
+import io.homeassistant.companion.android.common.compose.composable.HASwitch
 import io.homeassistant.companion.android.common.compose.theme.HADimens
+import io.homeassistant.companion.android.common.compose.theme.HARadius
+import io.homeassistant.companion.android.common.compose.theme.HATextStyle
 import io.homeassistant.companion.android.common.compose.theme.HATheme
+import io.homeassistant.companion.android.common.compose.theme.LocalHAColorScheme
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.getColorTemperature
 import io.homeassistant.companion.android.common.data.integration.supportsLightBrightness
@@ -100,7 +111,12 @@ class QuickSettingsControlDialogActivity : BaseActivity() {
             setContent {
                 HATheme {
                     Dialog(onDismissRequest = ::finish) {
-                        Surface {
+                        val colors = LocalHAColorScheme.current
+                        Surface(
+                            shape = RoundedCornerShape(HARadius.XL),
+                            color = colors.colorSurfaceDefault,
+                            contentColor = colors.colorTextPrimary,
+                        ) {
                             QuickSettingsControlDialog(
                                 tile = tile,
                                 configMode = config.mode,
@@ -171,34 +187,49 @@ private fun QuickSettingsControlDialog(
         configItems
     }
 
+    val colors = LocalHAColorScheme.current
     Column(
-        verticalArrangement = Arrangement.spacedBy(HADimens.SPACE3),
+        verticalArrangement = Arrangement.spacedBy(HADimens.SPACE4),
         modifier = Modifier
-            .width(360.dp)
+            .widthIn(min = 320.dp, max = 480.dp)
             .heightIn(max = 720.dp)
             .verticalScroll(rememberScrollState())
             .padding(HADimens.SPACE4),
     ) {
-        Text(text = primary.displayName())
-        Text(text = primary.state)
-        HorizontalDivider()
-        controls.forEach { item ->
-            RenderControl(
-                item = item,
-                fallbackEntityId = primary.entityId,
-                entities = entities,
-                onCallService = onCallService,
+        Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE1)) {
+            Text(
+                text = primary.displayName(),
+                style = HATextStyle.HeadlineMedium.copy(
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                ),
+            )
+            Text(
+                text = primary.visualSummary(),
+                style = HATextStyle.UserInput.copy(color = colors.colorTextSecondary),
             )
         }
-        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) }
+        HAHorizontalDivider()
+        controls.forEach { item ->
+            HASettingsCard {
+                RenderControl(
+                    item = item,
+                    fallbackEntityId = primary.entityId,
+                    entities = entities,
+                    onCallService = onCallService,
+                )
+            }
         }
+        HAFilledButton(
+            text = stringResource(android.R.string.ok),
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
 internal fun automaticControls(entity: Entity): List<TileControlItem> {
     val domain = entity.entityId.substringBefore('.')
-    val controls = mutableListOf(TileControlItem(type = TileControlType.ENTITY_STATE, entityId = entity.entityId))
+    val controls = mutableListOf<TileControlItem>()
     when (domain) {
         "light" -> {
             controls += TileControlItem(type = TileControlType.TOGGLE, entityId = entity.entityId)
@@ -330,23 +361,43 @@ private fun RenderControl(
     when (item.type) {
         TileControlType.ENTITY_STATE -> {
             val value = item.attribute?.let { entity.attributes[it] } ?: entity.state
-            Column {
-                Text(item.label ?: entity.displayName())
-                Text(if (item.attribute == null) entity.visualSummary() else value.toString())
+            Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE1)) {
+                Text(
+                    item.label ?: entity.displayName(),
+                    style = HATextStyle.UserInput.copy(color = LocalHAColorScheme.current.colorTextPrimary),
+                )
+                Text(
+                    if (item.attribute == null) entity.visualSummary() else value.toString(),
+                    style = HATextStyle.UserInput.copy(color = LocalHAColorScheme.current.colorTextSecondary),
+                )
                 entity.visualColor()?.let { color ->
                     Spacer(
                         Modifier
                             .fillMaxWidth()
-                            .background(color)
-                            .padding(4.dp),
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(HARadius.S))
+                            .background(color),
                     )
                 }
             }
         }
         TileControlType.TOGGLE -> {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(item.label ?: entity.displayName())
-                Switch(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        item.label ?: entity.displayName(),
+                        style = HATextStyle.UserInput.copy(color = LocalHAColorScheme.current.colorTextPrimary),
+                    )
+                    Text(
+                        entity.state,
+                        style = HATextStyle.BodyMedium.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Start),
+                    )
+                }
+                HASwitch(
                     checked = entity.state == "on",
                     onCheckedChange = {
                         onCallService("homeassistant", "toggle", emptyMap(), entity.entityId)
@@ -361,17 +412,21 @@ private fun RenderControl(
         TileControlType.ACTION -> {
             val domain = item.actionDomain ?: return
             val action = item.actionName ?: return
-            Button(
+            HAFilledButton(
+                text = item.label ?: "$domain.$action",
                 onClick = { onCallService(domain, action, item.actionData.toServiceData(), entity.entityId) },
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(item.label ?: "$domain.$action")
-            }
+            )
         }
         TileControlType.GROUP_MEMBERS -> {
             val members = entity.groupMembers()
             if (members.isNotEmpty()) {
-                Text(item.label ?: "Entities")
+                Text(
+                    item.label ?: "Entities",
+                    style = HATextStyle.UserInput.copy(
+                        color = LocalHAColorScheme.current.colorTextPrimary,
+                    ),
+                )
                 members.forEach { memberId ->
                     entities[memberId]?.let { member ->
                         Row(
@@ -379,8 +434,18 @@ private fun RenderControl(
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(member.displayName())
-                                Text(member.visualSummary())
+                                Text(
+                                    member.displayName(),
+                                    style = HATextStyle.UserInput.copy(
+                                        color = LocalHAColorScheme.current.colorTextPrimary,
+                                    ),
+                                )
+                                Text(
+                                    member.visualSummary(),
+                                    style = HATextStyle.BodyMedium.copy(
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                                    ),
+                                )
                                 member.visualColor()?.let { color ->
                                     Spacer(
                                         Modifier
@@ -390,7 +455,7 @@ private fun RenderControl(
                                     )
                                 }
                             }
-                            Switch(
+                            HASwitch(
                                 checked = member.state == "on",
                                 onCheckedChange = {
                                     onCallService("homeassistant", "toggle", emptyMap(), member.entityId)
@@ -422,8 +487,11 @@ private fun NumericControl(
     val min = item.min ?: 0f
     val max = item.max ?: 100f
     var value by remember(entity.entityId, raw) { mutableStateOf((actual ?: min).coerceIn(min, max)) }
-    Column {
-        Text("${item.label ?: item.attribute ?: field}: ${formatControlValue(value)}${item.unit.orEmpty()}")
+    Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE2)) {
+        ControlLabel(
+            label = item.label ?: item.attribute ?: field,
+            value = formatControlValue(value) + item.unit.orEmpty(),
+        )
         Slider(
             value = value,
             onValueChange = { value = it },
@@ -436,6 +504,7 @@ private fun NumericControl(
                 )
             },
             valueRange = min..max,
+            colors = haSliderColors(),
         )
     }
 }
@@ -452,31 +521,46 @@ private fun ColorControl(
         mutableStateOf((hs?.getOrNull(1) as? Number)?.toFloat() ?: 100f)
     }
     val swatch = Color.hsv(hue, saturation / 100f, 1f)
-    Column {
-        Text(item.label ?: "Color")
+    Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE2)) {
+        ControlLabel(item.label ?: "Color", "${hue.toInt()}° · ${saturation.toInt()}%")
         Spacer(
             Modifier
                 .fillMaxWidth()
-                .background(swatch)
-                .padding(8.dp),
+                .height(24.dp)
+                .clip(RoundedCornerShape(HARadius.S))
+                .background(swatch),
         )
-        Text("Hue ${hue.toInt()}°")
-        Slider(
+        ControlLabel("Hue", "${hue.toInt()}°")
+        GradientSlider(
             value = hue,
             onValueChange = { hue = it },
             onValueChangeFinished = {
                 onCallService("light", "turn_on", mapOf("hs_color" to listOf(hue, saturation)), entity.entityId)
             },
             valueRange = 0f..360f,
+            brush = Brush.horizontalGradient(
+                listOf(
+                    Color.Red,
+                    Color.Yellow,
+                    Color.Green,
+                    Color.Cyan,
+                    Color.Blue,
+                    Color.Magenta,
+                    Color.Red,
+                ),
+            ),
         )
-        Text("Saturation ${saturation.toInt()}%")
-        Slider(
+        ControlLabel("Saturation", "${saturation.toInt()}%")
+        GradientSlider(
             value = saturation,
             onValueChange = { saturation = it },
             onValueChangeFinished = {
                 onCallService("light", "turn_on", mapOf("hs_color" to listOf(hue, saturation)), entity.entityId)
             },
             valueRange = 0f..100f,
+            brush = Brush.horizontalGradient(
+                listOf(Color.White, Color.hsv(hue, 1f, 1f)),
+            ),
         )
     }
 }
@@ -492,15 +576,18 @@ private fun ColorTemperatureControl(
     val max = control?.max ?: (entity.attributes["max_color_temp_kelvin"] as? Number)?.toFloat() ?: 6500f
     val raw = (entity.attributes["color_temp_kelvin"] as? Number)?.toFloat() ?: ((min + max) / 2)
     var value by remember(entity.entityId, raw) { mutableStateOf(raw.coerceIn(min, max)) }
-    Column {
-        Text("${item.label ?: "Color temperature"}: ${value.toInt()} K")
-        Slider(
+    Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE2)) {
+        ControlLabel(item.label ?: "Color temperature", "${value.toInt()} K")
+        GradientSlider(
             value = value,
             onValueChange = { value = it },
             onValueChangeFinished = {
                 onCallService("light", "turn_on", mapOf("color_temp_kelvin" to value.toInt()), entity.entityId)
             },
             valueRange = min..max,
+            brush = Brush.horizontalGradient(
+                listOf(Color(0xFFFFA24A), Color(0xFFFFF4E0), Color(0xFFB7D8FF)),
+            ),
         )
     }
 }
@@ -536,6 +623,69 @@ private fun SelectControl(
         label = item.label ?: item.attribute ?: field,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+@Composable
+private fun ControlLabel(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = HATextStyle.UserInput.copy(color = LocalHAColorScheme.current.colorTextPrimary),
+        )
+        Text(
+            text = value,
+            style = HATextStyle.BodyMedium.copy(
+                color = LocalHAColorScheme.current.colorTextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun haSliderColors() = SliderDefaults.colors(
+    thumbColor = LocalHAColorScheme.current.colorFillPrimaryLoudResting,
+    activeTrackColor = LocalHAColorScheme.current.colorFillPrimaryLoudResting,
+    inactiveTrackColor = LocalHAColorScheme.current.colorFillNeutralNormalResting,
+)
+
+@Composable
+private fun GradientSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    brush: Brush,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(HARadius.S))
+                .background(brush),
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange,
+            colors = SliderDefaults.colors(
+                thumbColor = LocalHAColorScheme.current.colorFillPrimaryLoudResting,
+                activeTrackColor = Color.Transparent,
+                inactiveTrackColor = Color.Transparent,
+            ),
+        )
+    }
 }
 
 private fun Map<String, String>.toServiceData(): Map<String, Any?> = mapValues { (_, raw) ->

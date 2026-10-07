@@ -30,7 +30,6 @@ class QuickSettingsControlDialogTest {
 
         assertEquals(
             listOf(
-                TileControlType.ENTITY_STATE,
                 TileControlType.TOGGLE,
                 TileControlType.SLIDER,
                 TileControlType.COLOR,
