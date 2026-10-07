@@ -57,11 +57,16 @@ import io.homeassistant.companion.android.common.compose.theme.HARadius
 import io.homeassistant.companion.android.common.compose.theme.HATextStyle
 import io.homeassistant.companion.android.common.compose.theme.HAThemeForPreview
 import io.homeassistant.companion.android.common.compose.theme.LocalHAColorScheme
+import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayState
+import io.homeassistant.companion.android.common.util.fromHaName
+import io.homeassistant.companion.android.common.util.mdiName
 import io.homeassistant.companion.android.database.qs.TileTapAction
+import io.homeassistant.companion.android.database.qs.TileTextPart
 import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.settings.qs.ManageTilesState
 import io.homeassistant.companion.android.settings.qs.ManageTilesViewModel
+import io.homeassistant.companion.android.settings.qs.TileEditorMode
 import io.homeassistant.companion.android.settings.qs.TileId
 import io.homeassistant.companion.android.util.compose.HomeAssistantAppTheme
 import io.homeassistant.companion.android.util.compose.entity.EntityPicker
@@ -72,7 +77,7 @@ import io.homeassistant.companion.android.util.safeBottomWindowInsets
 internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifier = Modifier) {
     val snackbarHostState = remember { SnackbarHostState() }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var showIconDialog by remember { mutableStateOf(false) }
+    var iconDialogTarget by remember { mutableStateOf<Int?>(null) }
 
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -82,15 +87,20 @@ internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifi
         }
     }
 
-    if (showIconDialog) {
+    if (iconDialogTarget != null) {
         // TODO Migrate IconDialog to Material 3 https://github.com/home-assistant/android/issues/7156
         HomeAssistantAppTheme {
             IconDialog(
                 onSelect = { icon ->
-                    viewModel.selectIcon(icon)
-                    showIconDialog = false
+                    val target = iconDialogTarget
+                    if (target == -1) {
+                        viewModel.selectIcon(icon)
+                    } else if (target != null) {
+                        viewModel.updateIconRuleIcon(target, icon.mdiName)
+                    }
+                    iconDialogTarget = null
                 },
-                onDismissRequest = { showIconDialog = false },
+                onDismissRequest = { iconDialogTarget = null },
             )
         }
     }
@@ -101,6 +111,8 @@ internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifi
         submitEnabled = state.submitEnabled,
         onTileSelected = viewModel::selectTile,
         onTileTypeSelected = viewModel::selectTileType,
+        onEditorModeSelected = viewModel::selectEditorMode,
+        onYamlConfigChange = viewModel::setYamlConfig,
         onServerSelected = viewModel::selectServerId,
         onTileLabelChange = viewModel::setTileLabel,
         onTileSubtitleChange = viewModel::setTileSubtitle,
@@ -118,7 +130,40 @@ internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifi
         onActionDomainChange = viewModel::setActionDomain,
         onActionNameChange = viewModel::setActionName,
         onActionDataTemplateChange = viewModel::setActionDataTemplate,
-        onShowIconDialog = { showIconDialog = true },
+        onShowIconDialog = { iconDialogTarget = -1 },
+        advancedCallbacks = AdvancedTileCallbacks(
+            addLabelPart = viewModel::addLabelPart,
+            addSubtitlePart = viewModel::addSubtitlePart,
+            removeLabelPart = viewModel::removeLabelPart,
+            removeSubtitlePart = viewModel::removeSubtitlePart,
+            updateLabelPart = viewModel::updateLabelPart,
+            updateSubtitlePart = viewModel::updateSubtitlePart,
+            moveLabelPart = viewModel::moveLabelPart,
+            moveSubtitlePart = viewModel::moveSubtitlePart,
+            addIconRule = viewModel::addIconRule,
+            removeIconRule = viewModel::removeIconRule,
+            updateIconRuleState = viewModel::updateIconRuleState,
+            showIconRulePicker = { iconDialogTarget = it },
+            addActiveState = viewModel::addActiveState,
+            removeActiveState = viewModel::removeActiveState,
+            updateActiveState = viewModel::updateActiveState,
+            selectTapAction = viewModel::selectTapAction,
+            selectHoldAction = viewModel::selectHoldAction,
+            selectTapPerformAction = viewModel::selectTapPerformAction,
+            selectHoldPerformAction = viewModel::selectHoldPerformAction,
+            setTapActionField = viewModel::setTapActionField,
+            setHoldActionField = viewModel::setHoldActionField,
+            setTapTargetEntity = viewModel::setTapTargetEntity,
+            setTapTargetDevice = viewModel::setTapTargetDevice,
+            setTapTargetArea = viewModel::setTapTargetArea,
+            setHoldTargetEntity = viewModel::setHoldTargetEntity,
+            setHoldTargetDevice = viewModel::setHoldTargetDevice,
+            setHoldTargetArea = viewModel::setHoldTargetArea,
+            setTapNavigationPath = viewModel::setTapNavigationPath,
+            setTapUrl = viewModel::setTapUrl,
+            setHoldNavigationPath = viewModel::setHoldNavigationPath,
+            setHoldUrl = viewModel::setHoldUrl,
+        ),
         onResetIcon = { viewModel.selectIcon(null) },
         onShouldVibrateChange = viewModel::setShouldVibrate,
         onAuthRequiredChange = viewModel::setAuthRequired,
@@ -134,6 +179,8 @@ internal fun ManageTilesContent(
     submitEnabled: Boolean,
     onTileSelected: (id: TileId) -> Unit,
     onTileTypeSelected: (TileType) -> Unit,
+    onEditorModeSelected: (TileEditorMode) -> Unit,
+    onYamlConfigChange: (String) -> Unit,
     onServerSelected: (Int) -> Unit,
     onTileLabelChange: (String) -> Unit,
     onTileSubtitleChange: (String) -> Unit,
@@ -152,6 +199,7 @@ internal fun ManageTilesContent(
     onActionNameChange: (String) -> Unit,
     onActionDataTemplateChange: (String) -> Unit,
     onShowIconDialog: () -> Unit,
+    advancedCallbacks: AdvancedTileCallbacks = NoopAdvancedTileCallbacks,
     onResetIcon: () -> Unit,
     onShouldVibrateChange: (Boolean) -> Unit,
     onAuthRequiredChange: (Boolean) -> Unit,
@@ -180,6 +228,7 @@ internal fun ManageTilesContent(
                 state = state,
                 onTileSelected = onTileSelected,
                 onTileTypeSelected = onTileTypeSelected,
+                onEditorModeSelected = onEditorModeSelected,
                 onTileLabelChange = onTileLabelChange,
                 onTileSubtitleChange = onTileSubtitleChange,
             )
@@ -194,29 +243,47 @@ internal fun ManageTilesContent(
                 )
             }
 
-            TileConfigContent(
-                state = state,
-                onSelectionChanged = onSelectionChanged,
-                onLabelSourceSelected = onLabelSourceSelected,
-                onLabelAttributeSelected = onLabelAttributeSelected,
-                onSubtitleSourceSelected = onSubtitleSourceSelected,
-                onSubtitleAttributeSelected = onSubtitleAttributeSelected,
-                onTileLabelChange = onTileLabelChange,
-                onTileSubtitleChange = onTileSubtitleChange,
-                onStateEntityChanged = onStateEntityChanged,
-                onStateTemplateChange = onStateTemplateChange,
-                onStateDescriptionTemplateChange = onStateDescriptionTemplateChange,
-                onIconTemplateChange = onIconTemplateChange,
-                onContentDescriptionTemplateChange = onContentDescriptionTemplateChange,
-                onTapActionSelected = onTapActionSelected,
-                onActionDomainChange = onActionDomainChange,
-                onActionNameChange = onActionNameChange,
-                onActionDataTemplateChange = onActionDataTemplateChange,
-                onAuthRequiredChange = onAuthRequiredChange,
-                onShowIconDialog = onShowIconDialog,
-                onResetIcon = onResetIcon,
-                onShouldVibrateChange = onShouldVibrateChange,
-            )
+            if (state.editorMode == TileEditorMode.YAML) {
+                HATextField(
+                    value = state.yamlConfig,
+                    onValueChange = onYamlConfigChange,
+                    label = { Text(stringResource(commonR.string.tile_yaml_configuration)) },
+                    supportingText = {
+                        Text(
+                            state.yamlError ?: stringResource(commonR.string.tile_yaml_configuration_hint),
+                        )
+                    },
+                    isError = state.yamlError != null,
+                    minLines = 18,
+                    maxLines = 32,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                TileConfigContent(
+                    state = state,
+                    onSelectionChanged = onSelectionChanged,
+                    onLabelSourceSelected = onLabelSourceSelected,
+                    onLabelAttributeSelected = onLabelAttributeSelected,
+                    onSubtitleSourceSelected = onSubtitleSourceSelected,
+                    onSubtitleAttributeSelected = onSubtitleAttributeSelected,
+                    onTileLabelChange = onTileLabelChange,
+                    onTileSubtitleChange = onTileSubtitleChange,
+                    onStateEntityChanged = onStateEntityChanged,
+                    onStateTemplateChange = onStateTemplateChange,
+                    onStateDescriptionTemplateChange = onStateDescriptionTemplateChange,
+                    onIconTemplateChange = onIconTemplateChange,
+                    onContentDescriptionTemplateChange = onContentDescriptionTemplateChange,
+                    onTapActionSelected = onTapActionSelected,
+                    onActionDomainChange = onActionDomainChange,
+                    onActionNameChange = onActionNameChange,
+                    onActionDataTemplateChange = onActionDataTemplateChange,
+                    onAuthRequiredChange = onAuthRequiredChange,
+                    onShowIconDialog = onShowIconDialog,
+                    advancedCallbacks = advancedCallbacks,
+                    onResetIcon = onResetIcon,
+                    onShouldVibrateChange = onShouldVibrateChange,
+                )
+            }
 
             HAFilledButton(
                 text = stringResource(state.submitButtonLabel),
@@ -235,6 +302,7 @@ private fun ColumnScope.TileLabelContent(
     state: ManageTilesState,
     onTileSelected: (id: TileId) -> Unit,
     onTileTypeSelected: (TileType) -> Unit,
+    onEditorModeSelected: (TileEditorMode) -> Unit,
     onTileLabelChange: (String) -> Unit,
     onTileSubtitleChange: (String) -> Unit,
 ) {
@@ -262,16 +330,30 @@ private fun ColumnScope.TileLabelContent(
 
     HAHorizontalDivider()
 
-    val tileTypes: List<HADropdownItem<TileType>> = listOf(
-        HADropdownItem(TileType.Basic, stringResource(commonR.string.tile_type_basic)),
-        HADropdownItem(TileType.Entity, stringResource(commonR.string.tile_type_entity)),
-        HADropdownItem(TileType.Template, stringResource(commonR.string.tile_type_template)),
+    if (state.selectedTileType != TileType.Entity) {
+        val tileTypes: List<HADropdownItem<TileType>> = listOf(
+            HADropdownItem(TileType.Basic, stringResource(commonR.string.tile_type_basic)),
+            HADropdownItem(TileType.Entity, stringResource(commonR.string.tile_type_entity)),
+            HADropdownItem(TileType.Template, stringResource(commonR.string.tile_type_template)),
+        )
+        HADropdownMenu(
+            items = tileTypes,
+            selectedKey = state.selectedTileType,
+            onItemSelected = onTileTypeSelected,
+            label = stringResource(commonR.string.tile_type),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    val editorModes = listOf(
+        HADropdownItem(TileEditorMode.VISUAL, stringResource(commonR.string.tile_editor_visual)),
+        HADropdownItem(TileEditorMode.YAML, stringResource(commonR.string.tile_editor_yaml)),
     )
     HADropdownMenu(
-        items = tileTypes,
-        selectedKey = state.selectedTileType,
-        onItemSelected = onTileTypeSelected,
-        label = stringResource(commonR.string.tile_type),
+        items = editorModes,
+        selectedKey = state.editorMode,
+        onItemSelected = onEditorModeSelected,
+        label = stringResource(commonR.string.tile_editor_mode),
         modifier = Modifier.fillMaxWidth(),
     )
 
@@ -281,7 +363,7 @@ private fun ColumnScope.TileLabelContent(
         color = LocalHAColorScheme.current.colorTextSecondary,
     )
 
-    if (state.selectedTileType != TileType.Entity) {
+    if (state.editorMode == TileEditorMode.VISUAL && state.selectedTileType != TileType.Entity) {
         HATextField(
             value = state.tileLabel,
             onValueChange = onTileLabelChange,
@@ -322,6 +404,7 @@ private fun ColumnScope.TileConfigContent(
     onActionNameChange: (String) -> Unit,
     onActionDataTemplateChange: (String) -> Unit,
     onShowIconDialog: () -> Unit,
+    advancedCallbacks: AdvancedTileCallbacks,
     onResetIcon: () -> Unit,
     onShouldVibrateChange: (Boolean) -> Unit,
     onAuthRequiredChange: (Boolean) -> Unit,
@@ -342,34 +425,36 @@ private fun ColumnScope.TileConfigContent(
         )
         val attributes = state.entityAttributes.map { HADropdownItem(it, it) }
 
-        HADropdownMenu(
-            items = textSources,
-            selectedKey = state.labelSource,
-            onItemSelected = onLabelSourceSelected,
-            label = stringResource(commonR.string.tile_label_content),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        when (state.labelSource) {
-            TileTextSource.FIXED -> HATextField(
-                value = state.tileLabel,
-                onValueChange = onTileLabelChange,
-                label = { Text(text = stringResource(commonR.string.tile_fixed_text)) },
-                maxLines = 1,
+        if (state.labelParts.isEmpty()) {
+            HADropdownMenu(
+                items = textSources,
+                selectedKey = state.labelSource,
+                onItemSelected = onLabelSourceSelected,
+                label = stringResource(commonR.string.tile_label_content),
                 modifier = Modifier.fillMaxWidth(),
             )
-            TileTextSource.ATTRIBUTE -> HADropdownMenu(
-                items = attributes,
-                selectedKey = state.labelAttribute,
-                onItemSelected = onLabelAttributeSelected,
-                label = stringResource(commonR.string.tile_attribute),
-                placeholder = stringResource(commonR.string.select),
-                enabled = attributes.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            else -> Unit
+            when (state.labelSource) {
+                TileTextSource.FIXED -> HATextField(
+                    value = state.tileLabel,
+                    onValueChange = onTileLabelChange,
+                    label = { Text(text = stringResource(commonR.string.tile_fixed_text)) },
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TileTextSource.ATTRIBUTE -> HADropdownMenu(
+                    items = attributes,
+                    selectedKey = state.labelAttribute,
+                    onItemSelected = onLabelAttributeSelected,
+                    label = stringResource(commonR.string.tile_attribute),
+                    placeholder = stringResource(commonR.string.select),
+                    enabled = attributes.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                else -> Unit
+            }
         }
 
-        if (state.showSubtitle) {
+        if (state.showSubtitle && state.subtitleParts.isEmpty()) {
             HADropdownMenu(
                 items = textSources,
                 selectedKey = state.subtitleSource,
@@ -441,41 +526,14 @@ private fun ColumnScope.TileConfigContent(
             )
         }
 
-        val tapActions: List<HADropdownItem<TileTapAction>> = listOf(
-            HADropdownItem(TileTapAction.Automatic, stringResource(commonR.string.tile_action_automatic)),
-            HADropdownItem(TileTapAction.MoreInfo, stringResource(commonR.string.tile_action_more_info)),
-            HADropdownItem(TileTapAction.Custom, stringResource(commonR.string.tile_action_custom)),
-            HADropdownItem(TileTapAction.None, stringResource(commonR.string.tile_action_none)),
-        )
-        HADropdownMenu(
-            items = tapActions,
-            selectedKey = state.selectedTapAction,
-            onItemSelected = onTapActionSelected,
-            label = stringResource(commonR.string.tile_tap_action),
-            modifier = Modifier.fillMaxWidth(),
+        AdvancedVisualTileEditor(
+            state = state,
+            callbacks = advancedCallbacks,
+            showVisualContent = state.selectedTileType == TileType.Entity,
         )
 
-        if (state.selectedTapAction == TileTapAction.Custom) {
-            HATextField(
-                value = state.actionDomain,
-                onValueChange = onActionDomainChange,
-                label = { Text(text = stringResource(commonR.string.tile_action_domain)) },
-                maxLines = 1,
-            )
-            HATextField(
-                value = state.actionName,
-                onValueChange = onActionNameChange,
-                label = { Text(text = stringResource(commonR.string.tile_action_name)) },
-                maxLines = 1,
-            )
-            HATextField(
-                value = state.actionDataTemplate,
-                onValueChange = onActionDataTemplateChange,
-                label = { Text(text = stringResource(commonR.string.tile_action_data_template)) },
-                supportingText = templateHint,
-                minLines = 2,
-                maxLines = 6,
-            )
+        if (state.selectedTileType == TileType.Entity) {
+            TileConfigurationPreview(state)
         }
     }
 
@@ -485,6 +543,13 @@ private fun ColumnScope.TileConfigContent(
         onShowIconDialog = onShowIconDialog,
         onResetIcon = onResetIcon,
     )
+    if (!state.selectedEntityId.isNullOrBlank()) {
+        Text(
+            text = stringResource(commonR.string.tile_default_entity_icon),
+            style = HATextStyle.BodyMedium,
+            color = LocalHAColorScheme.current.colorTextSecondary,
+        )
+    }
 
     LabeledSwitchRow(
         label = stringResource(commonR.string.tile_vibrate),
@@ -497,6 +562,109 @@ private fun ColumnScope.TileConfigContent(
         checked = state.tileAuthRequired,
         onCheckedChange = onAuthRequiredChange,
     )
+}
+
+@Composable
+private fun TileConfigurationPreview(state: ManageTilesState, modifier: Modifier = Modifier) {
+    val loaded = state.entityDisplayState as? EntityDisplayState.Loaded
+    val entity = state.selectedEntityId?.let { loaded?.entity(it) }
+    val stateEntity = (state.selectedStateEntityId ?: state.selectedEntityId)?.let { loaded?.entity(it) }
+    val stateValue = stateEntity?.rawState.orEmpty()
+    val label = previewText(
+        parts = state.labelParts,
+        source = state.labelSource,
+        fixedValue = state.tileLabel,
+        attribute = state.labelAttribute,
+        entityName = entity?.name,
+        entityState = entity?.rawState,
+        attributes = state.entityAttributeValues,
+    )
+    val subtitle = previewText(
+        parts = state.subtitleParts,
+        source = state.subtitleSource,
+        fixedValue = state.tileSubtitle,
+        attribute = state.subtitleAttribute,
+        entityName = entity?.name,
+        entityState = entity?.rawState,
+        attributes = state.entityAttributeValues,
+    )
+    val stateIcon = state.iconRules
+        .firstOrNull { it.state.equals(stateValue, ignoreCase = true) }
+        ?.iconName
+        ?.let(Mdi::fromHaName)
+    val icon = stateIcon ?: state.selectedIcon
+    val colorScheme = LocalHAColorScheme.current
+    val shape = RoundedCornerShape(HARadius.L)
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(commonR.string.tile_preview),
+            style = HATextStyle.BodyMedium,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE3),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(HABorderWidth.S, colorScheme.colorBorderNeutralQuiet, shape)
+                .padding(HADimens.SPACE4),
+        ) {
+            if (icon != null) {
+                Image(
+                    imageVector = icon.rememberImageVector(),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(colorScheme.colorOnPrimaryNormal),
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label.ifBlank { state.selectedEntityId.orEmpty() },
+                    style = HATextStyle.BodyMedium,
+                )
+                if (state.showSubtitle && subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        style = HATextStyle.Body,
+                        color = colorScheme.colorTextSecondary,
+                    )
+                }
+                if (stateValue.isNotBlank()) {
+                    Text(
+                        text = stringResource(commonR.string.tile_preview_state, stateValue),
+                        style = HATextStyle.Body,
+                        color = colorScheme.colorTextSecondary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun previewText(
+    parts: List<TileTextPart>,
+    source: TileTextSource,
+    fixedValue: String,
+    attribute: String?,
+    entityName: String?,
+    entityState: String?,
+    attributes: Map<String, String>,
+): String {
+    fun value(type: TileTextSource, configuredValue: String?): String = when (type) {
+        TileTextSource.FIXED -> configuredValue.orEmpty()
+        TileTextSource.NAME -> entityName.orEmpty()
+        TileTextSource.STATE -> entityState.orEmpty()
+        TileTextSource.ATTRIBUTE -> configuredValue?.let(attributes::get).orEmpty()
+    }
+
+    return if (parts.isNotEmpty()) {
+        parts.joinToString(separator = "") { part -> value(part.sourceType, part.value) }
+    } else {
+        value(source, if (source == TileTextSource.FIXED) fixedValue else attribute)
+    }
 }
 
 @Composable
@@ -591,6 +759,8 @@ private fun ManageTilesPreview() {
             submitEnabled = false,
             onTileSelected = {},
             onTileTypeSelected = {},
+            onEditorModeSelected = {},
+            onYamlConfigChange = {},
             onServerSelected = {},
             onTileLabelChange = {},
             onTileSubtitleChange = {},
@@ -633,6 +803,8 @@ private fun ManageTilesUpdatePreview() {
             ),
             onTileSelected = {},
             onTileTypeSelected = {},
+            onEditorModeSelected = {},
+            onYamlConfigChange = {},
             onServerSelected = {},
             onTileLabelChange = {},
             onTileSubtitleChange = {},

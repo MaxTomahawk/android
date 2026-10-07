@@ -19,6 +19,9 @@ import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.common.util.mdiName
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
+import io.homeassistant.companion.android.database.qs.TileTextPart
+import io.homeassistant.companion.android.database.qs.TileTextSource
+import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.server.Server
 import io.homeassistant.companion.android.database.server.ServerConnectionInfo
 import io.homeassistant.companion.android.database.server.ServerSessionInfo
@@ -349,6 +352,7 @@ class ManageTilesViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
+        viewModel.selectLabelSource(TileTextSource.FIXED)
         viewModel.setTileLabel("New tile")
         viewModel.selectEntityId("light.new")
 
@@ -378,6 +382,7 @@ class ManageTilesViewModelTest {
 
         val viewModel = createViewModel()
         advanceUntilIdle()
+        viewModel.selectLabelSource(TileTextSource.FIXED)
 
         turbineScope {
             val snackbar = viewModel.tileInfoSnackbar.testIn(backgroundScope)
@@ -462,9 +467,7 @@ class ManageTilesViewModelTest {
     }
 
     @Test
-    fun `Given the entity picker when loading entities then only entities usable in a tile are requested`() = runTest {
-        // Regression test: the filter passed to the use case must exclude entities a tile
-        // cannot act on, otherwise the picker offers entities that do nothing when clicked.
+    fun `Given a modern entity tile when loading entities then all entity types are requested`() = runTest {
         val filter = slot<(Entity) -> Boolean>()
         every { entitiesForDisplayManager.snapshotInContext(any(), capture(filter)) } returns flowOf(EntityDisplayState.Loading)
 
@@ -473,7 +476,69 @@ class ManageTilesViewModelTest {
 
         assertTrue(filter.captured(fakeEntity("light.bulb")))
         assertTrue(filter.captured(fakeEntity("scene.movie_night")))
+        assertTrue(filter.captured(fakeEntity("sensor.temperature")))
+    }
+
+    @Test
+    fun `Given a legacy basic tile when loading entities then only pressable entities are requested`() = runTest {
+        val filter = slot<(Entity) -> Boolean>()
+        every { entitiesForDisplayManager.snapshotInContext(any(), capture(filter)) } returns flowOf(EntityDisplayState.Loading)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        viewModel.selectTileType(TileType.Basic)
+        advanceUntilIdle()
+
+        assertTrue(filter.captured(fakeEntity("light.bulb")))
+        assertTrue(filter.captured(fakeEntity("scene.movie_night")))
         assertFalse(filter.captured(fakeEntity("sensor.temperature")))
+    }
+
+    @Test
+    fun `Given malformed YAML when editing then keep the previous valid visual state and expose an error`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.setTileLabel("Keep me")
+        viewModel.setYamlConfig("not-a-mapping")
+
+        assertEquals("Keep me", viewModel.state.value.tileLabel)
+        assertEquals("not-a-mapping", viewModel.state.value.yamlConfig)
+        assertTrue(!viewModel.state.value.yamlError.isNullOrBlank())
+    }
+
+    @Test
+    fun `Given malformed YAML when switching back to visual then discard invalid YAML and clear the error`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.selectLabelSource(TileTextSource.FIXED)
+        viewModel.setTileLabel("Keep me")
+        viewModel.setYamlConfig("[")
+        assertTrue(!viewModel.state.value.yamlError.isNullOrBlank())
+
+        viewModel.selectEditorMode(TileEditorMode.VISUAL)
+
+        assertEquals("Keep me", viewModel.state.value.tileLabel)
+        assertNull(viewModel.state.value.yamlError)
+        assertTrue(viewModel.state.value.yamlConfig.contains("Keep me"))
+    }
+
+    @Test
+    fun `Given multipart label when moving a part then preserve content and update order`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.addLabelPart()
+        viewModel.updateLabelPart(0, TileTextPart.fixed("A"))
+        viewModel.addLabelPart()
+        viewModel.updateLabelPart(1, TileTextPart.fixed("B"))
+        viewModel.moveLabelPart(1, -1)
+
+        assertEquals(
+            listOf(TileTextPart.fixed("B"), TileTextPart.fixed("A")),
+            viewModel.state.value.labelParts,
+        )
     }
 
     @Test

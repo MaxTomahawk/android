@@ -20,6 +20,7 @@ import io.github.timoptr.mdiicons.generated.Home
 import io.homeassistant.companion.android.HiltComponentActivity
 import io.homeassistant.companion.android.common.R as commonR
 import io.homeassistant.companion.android.common.compose.composable.HADropdownItem
+import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.settings.qs.ManageTilesState
 import io.homeassistant.companion.android.settings.qs.TileId
 import org.junit.Rule
@@ -47,7 +48,9 @@ class ManageTilesTest {
             testScreen(addTileState) {
                 onNodeWithText(activity.getString(commonR.string.tile_server)).assertDoesNotExist()
                 onNodeWithContentDescription(activity.getString(commonR.string.undo)).assertDoesNotExist()
-                onNodeWithText(activity.getString(commonR.string.tile_subtitle)).performScrollTo().assertIsDisplayed()
+                onNodeWithText(activity.getString(commonR.string.tile_subtitle_content), substring = true)
+                    .performScrollTo()
+                    .assertIsDisplayed()
                 onNodeWithText(activity.getString(commonR.string.tile_add)).performScrollTo().assertIsNotEnabled()
             }
         }
@@ -65,20 +68,24 @@ class ManageTilesTest {
     }
 
     @Test
-    fun `Given screen when typing label then onTileLabelChange is triggered`() {
+    fun `Given fixed label source when typing label then onTileLabelChange is triggered`() {
         composeTestRule.apply {
-            testScreen(addTileState) {
-                onNodeWithText(activity.getString(commonR.string.tile_label), substring = true).performScrollTo().performTextInput("Living room")
+            testScreen(addTileState.copy(labelSource = TileTextSource.FIXED)) {
+                onNodeWithText(activity.getString(commonR.string.tile_fixed_text))
+                    .performScrollTo()
+                    .performTextInput("Living room")
                 assertEquals("Living room", tileLabel)
             }
         }
     }
 
     @Test
-    fun `Given screen when typing subtitle then onTileSubtitleChange is triggered`() {
+    fun `Given fixed subtitle source when typing subtitle then onTileSubtitleChange is triggered`() {
         composeTestRule.apply {
-            testScreen(addTileState) {
-                onNodeWithText(activity.getString(commonR.string.tile_subtitle)).performScrollTo().performTextInput("Lights")
+            testScreen(addTileState.copy(subtitleSource = TileTextSource.FIXED)) {
+                onNodeWithText(activity.getString(commonR.string.tile_fixed_text))
+                    .performScrollTo()
+                    .performTextInput("Lights")
                 assertEquals("Lights", tileSubtitle)
             }
         }
@@ -159,10 +166,26 @@ class ManageTilesTest {
                     state = state,
                     submitEnabled = submitEnabled,
                     onTileSelected = { tileSelected = it },
+                    onTileTypeSelected = {},
+                    onEditorModeSelected = {},
+                    onYamlConfigChange = {},
                     onServerSelected = { serverSelected = it },
                     onTileLabelChange = { tileLabel = it },
                     onTileSubtitleChange = { tileSubtitle = it },
+                    onLabelSourceSelected = {},
+                    onLabelAttributeSelected = {},
+                    onSubtitleSourceSelected = {},
+                    onSubtitleAttributeSelected = {},
                     onSelectionChanged = { entitySelected = it },
+                    onStateEntityChanged = {},
+                    onStateTemplateChange = {},
+                    onStateDescriptionTemplateChange = {},
+                    onIconTemplateChange = {},
+                    onContentDescriptionTemplateChange = {},
+                    onTapActionSelected = {},
+                    onActionDomainChange = {},
+                    onActionNameChange = {},
+                    onActionDataTemplateChange = {},
                     onShowIconDialog = { iconDialogShown = true },
                     onResetIcon = { iconReset = true },
                     onShouldVibrateChange = { shouldVibrate = it },
@@ -183,6 +206,8 @@ class ManageTilesTest {
             showSubtitle = true,
             tileSubtitle = "",
             selectedEntityId = "",
+            labelSource = TileTextSource.NAME,
+            subtitleSource = TileTextSource.STATE,
             submitButtonLabel = commonR.string.tile_add,
         )
 
