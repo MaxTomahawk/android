@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,6 +17,9 @@ import io.homeassistant.companion.android.common.compose.composable.HATextField
 import io.homeassistant.companion.android.common.compose.theme.HADimens
 import io.homeassistant.companion.android.common.data.integration.Action
 import io.homeassistant.companion.android.common.data.integration.ActionFields
+import io.homeassistant.companion.android.database.qs.TileControlDialogMode
+import io.homeassistant.companion.android.database.qs.TileControlItem
+import io.homeassistant.companion.android.database.qs.TileControlType
 import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileTextPart
 import io.homeassistant.companion.android.database.qs.TileTextSource
@@ -57,6 +61,11 @@ internal data class AdvancedTileCallbacks(
     val setTapUrl: (String) -> Unit,
     val setHoldNavigationPath: (String) -> Unit,
     val setHoldUrl: (String) -> Unit,
+    val setControlDialogMode: (TileControlDialogMode) -> Unit,
+    val addControlDialogItem: () -> Unit,
+    val removeControlDialogItem: (Int) -> Unit,
+    val moveControlDialogItem: (Int, Int) -> Unit,
+    val updateControlDialogItem: (Int, TileControlItem) -> Unit,
 )
 
 internal val NoopAdvancedTileCallbacks = AdvancedTileCallbacks(
@@ -91,6 +100,11 @@ internal val NoopAdvancedTileCallbacks = AdvancedTileCallbacks(
     setTapUrl = {},
     setHoldNavigationPath = {},
     setHoldUrl = {},
+    setControlDialogMode = {},
+    addControlDialogItem = {},
+    removeControlDialogItem = {},
+    moveControlDialogItem = { _, _ -> },
+    updateControlDialogItem = { _, _ -> },
 )
 
 @Composable
@@ -196,6 +210,10 @@ internal fun AdvancedVisualTileEditor(
             onNavigationPath = callbacks.setTapNavigationPath,
             onUrl = callbacks.setTapUrl,
         )
+        if (state.selectedTapAction == TileTapAction.Controls || state.selectedHoldAction == TileTapAction.Controls) {
+            ControlDialogEditor(state = state, callbacks = callbacks)
+        }
+
         TileActionEditor(
             title = stringResource(commonR.string.tile_hold_action),
             actionType = state.selectedHoldAction,
@@ -298,6 +316,308 @@ private fun TextPartsEditor(
 }
 
 @Composable
+private fun ControlDialogEditor(state: ManageTilesState, callbacks: AdvancedTileCallbacks) {
+    Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE3)) {
+        Text(text = stringResource(commonR.string.tile_control_dialog))
+        HADropdownMenu(
+            items = listOf(
+                HADropdownItem(
+                    TileControlDialogMode.AUTOMATIC,
+                    stringResource(commonR.string.tile_control_dialog_automatic),
+                ),
+                HADropdownItem(
+                    TileControlDialogMode.CUSTOM,
+                    stringResource(commonR.string.tile_control_dialog_custom),
+                ),
+            ),
+            selectedKey = state.controlDialogConfig.mode,
+            onItemSelected = callbacks.setControlDialogMode,
+            label = stringResource(commonR.string.tile_control_dialog_mode),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (state.controlDialogConfig.mode == TileControlDialogMode.AUTOMATIC) {
+            Text(text = stringResource(commonR.string.tile_control_dialog_automatic_hint))
+        } else {
+            val types = listOf(
+                HADropdownItem(TileControlType.ENTITY_STATE, stringResource(commonR.string.tile_control_entity_state)),
+                HADropdownItem(TileControlType.TOGGLE, stringResource(commonR.string.tile_control_toggle)),
+                HADropdownItem(TileControlType.SLIDER, stringResource(commonR.string.tile_control_slider)),
+                HADropdownItem(TileControlType.COLOR, stringResource(commonR.string.tile_control_color)),
+                HADropdownItem(
+                    TileControlType.COLOR_TEMPERATURE,
+                    stringResource(commonR.string.tile_control_color_temperature),
+                ),
+                HADropdownItem(TileControlType.SELECT, stringResource(commonR.string.tile_control_select)),
+                HADropdownItem(TileControlType.ACTION, stringResource(commonR.string.tile_control_action)),
+                HADropdownItem(
+                    TileControlType.GROUP_MEMBERS,
+                    stringResource(commonR.string.tile_control_group_members),
+                ),
+            )
+            state.controlDialogConfig.controls.forEachIndexed { index, item ->
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(HADimens.SPACE2),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    HADropdownMenu(
+                        items = types,
+                        selectedKey = item.type,
+                        onItemSelected = {
+                            callbacks.updateControlDialogItem(index, item.copy(type = it))
+                        },
+                        label = stringResource(commonR.string.tile_control_item, index + 1),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    EntityPicker(
+                        displayState = state.entityDisplayState,
+                        selectedEntityId = item.entityId ?: state.selectedEntityId,
+                        onSelectionChanged = {
+                            callbacks.updateControlDialogItem(index, item.copy(entityId = it))
+                        },
+                        addButtonText = stringResource(commonR.string.tile_control_entity),
+                    )
+                    HATextField(
+                        value = item.label.orEmpty(),
+                        onValueChange = { callbacks.updateControlDialogItem(index, item.copy(label = it)) },
+                        label = { Text(stringResource(commonR.string.tile_control_label)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    if (item.type == TileControlType.ENTITY_STATE ||
+                        item.type == TileControlType.SLIDER ||
+                        item.type == TileControlType.SELECT
+                    ) {
+                        HATextField(
+                            value = item.attribute.orEmpty(),
+                            onValueChange = { callbacks.updateControlDialogItem(index, item.copy(attribute = it)) },
+                            label = { Text(stringResource(commonR.string.tile_control_attribute)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    if (item.type == TileControlType.SLIDER ||
+                        item.type == TileControlType.SELECT ||
+                        item.type == TileControlType.ACTION
+                    ) {
+                        val actionItems = state.availableActions.map { action ->
+                            HADropdownItem(
+                                "${action.domain}.${action.action}",
+                                action.actionData.name ?: "${action.domain}.${action.action}",
+                            )
+                        }
+                        val selectedAction = listOfNotNull(item.actionDomain, item.actionName)
+                            .takeIf { it.size == 2 }
+                            ?.joinToString(".")
+                        HADropdownMenu(
+                            items = actionItems,
+                            selectedKey = selectedAction,
+                            onItemSelected = { key ->
+                                val parts = key.split(".", limit = 2)
+                                callbacks.updateControlDialogItem(
+                                    index,
+                                    item.copy(
+                                        actionDomain = parts.getOrNull(0),
+                                        actionName = parts.getOrNull(1),
+                                        actionField = null,
+                                        actionData = emptyMap(),
+                                    ),
+                                )
+                            },
+                            label = stringResource(commonR.string.tile_action_select),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        val action = state.availableActions.firstOrNull {
+                            it.domain == item.actionDomain && it.action == item.actionName
+                        }
+                        if (action != null) {
+                            val actionFields = flattenActionFields(action.actionData.fields)
+                            if (item.type == TileControlType.SLIDER || item.type == TileControlType.SELECT) {
+                                HADropdownMenu(
+                                    items = actionFields.keys.map { HADropdownItem(it, it) },
+                                    selectedKey = item.actionField,
+                                    onItemSelected = { fieldKey ->
+                                        val spec = actionFields[fieldKey]?.numberSelectorSpec()
+                                        callbacks.updateControlDialogItem(
+                                            index,
+                                            item.copy(
+                                                actionField = fieldKey,
+                                                min = spec?.min ?: item.min,
+                                                max = spec?.max ?: item.max,
+                                                step = spec?.step ?: item.step,
+                                                unit = spec?.unit ?: item.unit,
+                                            ),
+                                        )
+                                    },
+                                    label = stringResource(commonR.string.tile_control_action_field),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            ControlDialogActionDataEditor(
+                                state = state,
+                                index = index,
+                                item = item,
+                                fields = actionFields.filterKeys { it != item.actionField },
+                                callbacks = callbacks,
+                            )
+                        }
+                    }
+
+                    if (item.type == TileControlType.SLIDER) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2)) {
+                            HATextField(
+                                value = item.min?.toString().orEmpty(),
+                                onValueChange = {
+                                    callbacks.updateControlDialogItem(index, item.copy(min = it.toFloatOrNull()))
+                                },
+                                label = { Text(stringResource(commonR.string.tile_control_min)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            HATextField(
+                                value = item.max?.toString().orEmpty(),
+                                onValueChange = {
+                                    callbacks.updateControlDialogItem(index, item.copy(max = it.toFloatOrNull()))
+                                },
+                                label = { Text(stringResource(commonR.string.tile_control_max)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            HATextField(
+                                value = item.step?.toString().orEmpty(),
+                                onValueChange = {
+                                    callbacks.updateControlDialogItem(index, item.copy(step = it.toFloatOrNull()))
+                                },
+                                label = { Text(stringResource(commonR.string.tile_control_step)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        HATextField(
+                            value = item.unit.orEmpty(),
+                            onValueChange = { callbacks.updateControlDialogItem(index, item.copy(unit = it)) },
+                            label = { Text(stringResource(commonR.string.tile_control_unit)) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(HADimens.SPACE2)) {
+                        if (index > 0) {
+                            HAPlainButton(
+                                text = stringResource(commonR.string.tile_move_content_up),
+                                onClick = { callbacks.moveControlDialogItem(index, -1) },
+                            )
+                        }
+                        if (index < state.controlDialogConfig.controls.lastIndex) {
+                            HAPlainButton(
+                                text = stringResource(commonR.string.tile_move_content_down),
+                                onClick = { callbacks.moveControlDialogItem(index, 1) },
+                            )
+                        }
+                        HAPlainButton(
+                            text = stringResource(commonR.string.tile_remove_content_part),
+                            onClick = { callbacks.removeControlDialogItem(index) },
+                        )
+                    }
+                }
+            }
+            HAPlainButton(
+                text = stringResource(commonR.string.tile_control_add),
+                onClick = callbacks.addControlDialogItem,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ControlDialogActionDataEditor(
+    state: ManageTilesState,
+    index: Int,
+    item: TileControlItem,
+    fields: Map<String, ActionFields>,
+    callbacks: AdvancedTileCallbacks,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(HADimens.SPACE2)) {
+        fields.forEach { (fieldKey, field) ->
+            val label = field.displayName(fieldKey)
+            val update: (String) -> Unit = { value ->
+                callbacks.updateControlDialogItem(
+                    index,
+                    item.copy(
+                        actionData = item.actionData.toMutableMap().apply {
+                            if (value.isBlank()) remove(fieldKey) else put(fieldKey, value)
+                        },
+                    ),
+                )
+            }
+            when (field.selectorType()) {
+                "entity" -> EntityPicker(
+                    displayState = state.entityDisplayState,
+                    selectedEntityId = item.actionData[fieldKey],
+                    onSelectionChanged = { update(it.orEmpty()) },
+                    addButtonText = label,
+                )
+                "boolean" -> HADropdownMenu(
+                    items = listOf(
+                        HADropdownItem("true", "On"),
+                        HADropdownItem("false", "Off"),
+                    ),
+                    selectedKey = item.actionData[fieldKey],
+                    onItemSelected = update,
+                    label = label,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                "select" -> HADropdownMenu(
+                    items = field.selectOptions().map { (value, optionLabel) -> HADropdownItem(value, optionLabel) },
+                    selectedKey = item.actionData[fieldKey],
+                    onItemSelected = update,
+                    label = label,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                "device" -> HADropdownMenu(
+                    items = state.availableDevices.map { HADropdownItem(it.id, it.name) },
+                    selectedKey = item.actionData[fieldKey],
+                    onItemSelected = update,
+                    label = label,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                "area" -> HADropdownMenu(
+                    items = state.availableAreas.map { HADropdownItem(it.id, it.name) },
+                    selectedKey = item.actionData[fieldKey],
+                    onItemSelected = update,
+                    label = label,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                "number", "color_temp" -> {
+                    val spec = field.numberSelectorSpec()
+                    if (spec != null) {
+                        val value = item.actionData[fieldKey]?.toFloatOrNull()?.coerceIn(spec.min, spec.max) ?: spec.min
+                        Column {
+                            Text(label + ": " + formatSelectorNumber(value) + spec.unit.orEmpty())
+                            Slider(
+                                value = value,
+                                onValueChange = { update(formatSelectorNumber(it)) },
+                                valueRange = spec.min..spec.max,
+                            )
+                        }
+                    } else {
+                        HATextField(
+                            value = item.actionData[fieldKey].orEmpty(),
+                            onValueChange = update,
+                            label = { Text(label) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                else -> HATextField(
+                    value = item.actionData[fieldKey].orEmpty(),
+                    onValueChange = update,
+                    label = { Text(label) },
+                    supportingText = field.description?.let { description -> { Text(description) } },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TileActionEditor(
     title: String,
     actionType: TileTapAction,
@@ -324,6 +644,7 @@ private fun TileActionEditor(
         HADropdownItem(TileTapAction.Automatic, stringResource(commonR.string.tile_action_automatic)),
         HADropdownItem(TileTapAction.Toggle, stringResource(commonR.string.tile_action_toggle)),
         HADropdownItem(TileTapAction.MoreInfo, stringResource(commonR.string.tile_action_more_info)),
+        HADropdownItem(TileTapAction.Controls, stringResource(commonR.string.tile_action_controls)),
         HADropdownItem(TileTapAction.PerformAction, stringResource(commonR.string.tile_action_custom)),
         HADropdownItem(TileTapAction.Navigate, stringResource(commonR.string.tile_action_navigate)),
         HADropdownItem(TileTapAction.Url, stringResource(commonR.string.tile_action_url)),
@@ -386,7 +707,7 @@ private fun TileActionEditor(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            selected?.actionData?.fields?.forEach { (fieldKey, field) ->
+            flattenActionFields(selected?.actionData?.fields.orEmpty()).forEach { (fieldKey, field) ->
                 val label = field.displayName(fieldKey)
                 when (field.selectorType()) {
                     "entity" -> EntityPicker(
@@ -414,6 +735,29 @@ private fun TileActionEditor(
                         label = label,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    "number", "color_temp" -> {
+                        val spec = field.numberSelectorSpec()
+                        if (spec != null) {
+                            val value = fieldValues[fieldKey]?.toFloatOrNull()?.coerceIn(spec.min, spec.max)
+                                ?: spec.min
+                            Column {
+                                Text(label + ": " + formatSelectorNumber(value) + spec.unit.orEmpty())
+                                Slider(
+                                    value = value,
+                                    onValueChange = { onField(fieldKey, formatSelectorNumber(it)) },
+                                    valueRange = spec.min..spec.max,
+                                )
+                            }
+                        } else {
+                            HATextField(
+                                value = fieldValues[fieldKey].orEmpty(),
+                                onValueChange = { onField(fieldKey, it) },
+                                label = { Text(label) },
+                                supportingText = field.description?.let { description -> { Text(description) } },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                     "device" -> HADropdownMenu(
                         items = state.availableDevices.map { HADropdownItem(it.id, it.name) },
                         selectedKey = fieldValues[fieldKey],
@@ -481,6 +825,38 @@ private fun Any?.targetSelectorTypes(): Set<String> = when (this) {
 }
 
 private fun ActionFields.selectorType(): String? = selector?.keys?.firstOrNull()
+
+private data class NumberSelectorSpec(
+    val min: Float,
+    val max: Float,
+    val step: Float? = null,
+    val unit: String? = null,
+)
+
+private fun ActionFields.numberSelectorSpec(): NumberSelectorSpec? {
+    val type = selectorType() ?: return null
+    val config = selector?.get(type) as? JsonObject ?: return null
+    val defaultRange = if (type == "color_temp") 2000f to 6500f else null
+    val min = (config["min"] as? JsonPrimitive)?.content?.toFloatOrNull() ?: defaultRange?.first ?: return null
+    val max = (config["max"] as? JsonPrimitive)?.content?.toFloatOrNull() ?: defaultRange?.second ?: return null
+    val step = (config["step"] as? JsonPrimitive)?.content?.toFloatOrNull()
+    val unit = ((config["unit_of_measurement"] ?: config["unit"]) as? JsonPrimitive)?.content
+    return NumberSelectorSpec(min = min, max = max, step = step, unit = unit)
+}
+
+private fun flattenActionFields(fields: Map<String, ActionFields>): Map<String, ActionFields> = buildMap {
+    fields.forEach { (key, field) ->
+        val nested = field.fields
+        if (nested.isNullOrEmpty()) {
+            put(key, field)
+        } else {
+            putAll(flattenActionFields(nested))
+        }
+    }
+}
+
+private fun formatSelectorNumber(value: Float): String =
+    if (value % 1f == 0f) value.toInt().toString() else value.toString()
 
 private fun ActionFields.selectOptions(): List<Pair<String, String>> {
     val select = selector?.get("select") as? JsonObject

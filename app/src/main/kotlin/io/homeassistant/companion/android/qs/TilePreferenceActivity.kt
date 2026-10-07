@@ -111,6 +111,19 @@ class TilePreferenceActivity : BaseActivity() {
                     }
                 }
 
+                TileTapAction.Controls -> {
+                    if (tileData.entityId.isNotBlank()) {
+                        launchAndFinish(
+                            QuickSettingsControlDialogActivity.newInstance(
+                                this@TilePreferenceActivity,
+                                tileData.tileId,
+                            ),
+                        )
+                    } else {
+                        finishWithoutAnimation()
+                    }
+                }
+
                 TileTapAction.PerformAction -> {
                     val domain = tileData.holdActionDomain
                     val action = tileData.holdActionName

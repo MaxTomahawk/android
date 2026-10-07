@@ -499,6 +499,14 @@ internal abstract class TileExtensions : TileService() {
                 )
             }
 
+            TileTapAction.Controls -> {
+                require(tileData.entityId.isNotBlank()) { "Controls tile action requires an entity" }
+                launchFromTile(
+                    QuickSettingsControlDialogActivity.newInstance(applicationContext, tileData.tileId),
+                    requestCode,
+                )
+            }
+
             TileTapAction.PerformAction -> {
                 val actionDomain = requireNotNull(domain?.takeIf { it.isNotBlank() }) {
                     "Perform action requires a domain"

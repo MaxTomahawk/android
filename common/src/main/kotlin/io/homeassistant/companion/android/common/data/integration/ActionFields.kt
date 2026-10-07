@@ -13,4 +13,7 @@ data class ActionFields(
     val values: List<String>? = null,
     val required: Boolean? = null,
     val selector: JsonObject? = null,
+    val filter: JsonObject? = null,
+    val collapsed: Boolean? = null,
+    val fields: Map<String, ActionFields>? = null,
 )

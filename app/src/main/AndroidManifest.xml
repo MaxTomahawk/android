@@ -616,6 +616,11 @@
         </provider>
 
         <activity
+            android:name=".qs.QuickSettingsControlDialogActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HomeAssistant.TranslucentOverlay" />
+
+        <activity
             android:name=".qs.TilePreferenceActivity"
             android:exported="true"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
