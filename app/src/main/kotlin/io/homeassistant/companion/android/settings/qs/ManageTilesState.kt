@@ -9,6 +9,7 @@ import io.homeassistant.companion.android.common.data.integration.display.Entity
 import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayWithContext
 import io.homeassistant.companion.android.common.data.servers.ServerManager
 import io.homeassistant.companion.android.database.qs.TileTapAction
+import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
 
 /** A tile slot with the label of its configured tile, ready to be displayed in the slot picker. */
@@ -30,6 +31,11 @@ internal data class ManageTilesState(
     val selectedStateEntityId: String? = null,
     val selectedTileType: TileType = TileType.Basic,
     val selectedTapAction: TileTapAction = TileTapAction.Automatic,
+    val labelSource: TileTextSource = TileTextSource.FIXED,
+    val labelAttribute: String? = null,
+    val subtitleSource: TileTextSource = TileTextSource.FIXED,
+    val subtitleAttribute: String? = null,
+    val entityAttributes: List<String> = emptyList(),
     val tileLabel: String = "",
     val tileSubtitle: String = "",
     val tileStateTemplate: String = "",
@@ -69,8 +75,23 @@ internal data class ManageTilesState(
         TileTapAction.None -> true
     }
 
-    val submitEnabled = tileLabel.isNotBlank() &&
+    private val labelValid = selectedTileType != TileType.Entity ||
+        labelSource != TileTextSource.ATTRIBUTE ||
+        labelAttribute != null
+
+    private val subtitleValid = selectedTileType != TileType.Entity ||
+        subtitleSource != TileTextSource.ATTRIBUTE ||
+        subtitleAttribute != null
+
+    private val requiredLabelPresent = when {
+        selectedTileType == TileType.Entity && labelSource != TileTextSource.FIXED -> true
+        else -> tileLabel.isNotBlank()
+    }
+
+    val submitEnabled = requiredLabelPresent &&
         serversDropdownItems.any { it.key == selectedServerId } &&
+        labelValid &&
+        subtitleValid &&
         selectedEntityExists &&
         selectedStateEntityExists &&
         actionValid &&
@@ -88,6 +109,7 @@ internal data class ManageTilesState(
             selectedServerId = serverId,
             selectedEntityId = null,
             selectedStateEntityId = null,
+            entityAttributes = emptyList(),
             entityDisplayState = EntityDisplayState.Loading,
         )
     }

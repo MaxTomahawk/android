@@ -37,11 +37,14 @@ import io.homeassistant.companion.android.common.util.kotlinJsonMapper
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
 import io.homeassistant.companion.android.database.qs.TileTapAction
+import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
+import io.homeassistant.companion.android.database.qs.labelSourceType
 import io.homeassistant.companion.android.database.qs.numberedId
 import io.homeassistant.companion.android.database.qs.stateSourceEntityId
+import io.homeassistant.companion.android.database.qs.subtitleSourceType
 import io.homeassistant.companion.android.database.qs.tapActionType
 import io.homeassistant.companion.android.database.qs.type
 import io.homeassistant.companion.android.frontend.navigation.FrontendTarget
@@ -196,10 +199,20 @@ internal abstract class TileExtensions : TileService() {
                     }
                 }
 
-                val label = renderTileText(tileData.label) ?: tileData.label
+                val label = resolveDisplayText(
+                    source = tileData.labelSourceType,
+                    fixedValue = tileData.label,
+                    attribute = tileData.labelAttribute,
+                    entity = mainEntity,
+                ) ?: tileData.label
                 tile.label = label
                 if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
-                    tile.subtitle = renderTileText(tileData.subtitle)
+                    tile.subtitle = resolveDisplayText(
+                        source = tileData.subtitleSourceType,
+                        fixedValue = tileData.subtitle,
+                        attribute = tileData.subtitleAttribute,
+                        entity = mainEntity,
+                    )
                 }
                 tile.contentDescription = renderTileText(tileData.contentDescriptionTemplate) ?: label
 
@@ -240,6 +253,18 @@ internal abstract class TileExtensions : TileService() {
             Timber.e(e, "Unable to set tile data for tile ID: $tileId")
             return false
         }
+    }
+
+    private suspend fun resolveDisplayText(
+        source: TileTextSource,
+        fixedValue: String?,
+        attribute: String?,
+        entity: Entity?,
+    ): String? = when (source) {
+        TileTextSource.FIXED -> renderTileText(fixedValue)
+        TileTextSource.NAME -> entity?.attributes?.get("friendly_name")?.toString() ?: entity?.entityId
+        TileTextSource.STATE -> entity?.state
+        TileTextSource.ATTRIBUTE -> attribute?.let { entity?.attributes?.get(it)?.toString() }
     }
 
     private suspend fun renderTileText(value: String?): String? {

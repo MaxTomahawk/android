@@ -19,6 +19,7 @@ import io.homeassistant.companion.android.common.R as commonR
 import io.homeassistant.companion.android.common.compose.composable.HADropdownItem
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.display.EntitiesForDisplayManager
+import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayState
 import io.homeassistant.companion.android.common.data.integration.isUsableInTile
 import io.homeassistant.companion.android.common.data.servers.ServerManager
 import io.homeassistant.companion.android.common.util.SdkVersion
@@ -27,10 +28,13 @@ import io.homeassistant.companion.android.common.util.mdiName
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
 import io.homeassistant.companion.android.database.qs.TileTapAction
+import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
+import io.homeassistant.companion.android.database.qs.labelSourceType
 import io.homeassistant.companion.android.database.qs.numberedId
+import io.homeassistant.companion.android.database.qs.subtitleSourceType
 import io.homeassistant.companion.android.database.qs.tapActionType
 import io.homeassistant.companion.android.database.qs.type
 import io.homeassistant.companion.android.qs.Tile1Service
@@ -121,6 +125,11 @@ internal class ManageTilesViewModel @Inject constructor(
                     selectedStateEntityId = setupEntity?.stateEntityId?.takeIf { it.isNotBlank() },
                     selectedTileType = setupEntity?.type ?: TileType.Basic,
                     selectedTapAction = setupEntity?.tapActionType ?: TileTapAction.Automatic,
+                    labelSource = setupEntity?.labelSourceType ?: TileTextSource.FIXED,
+                    labelAttribute = setupEntity?.labelAttribute,
+                    subtitleSource = setupEntity?.subtitleSourceType ?: TileTextSource.FIXED,
+                    subtitleAttribute = setupEntity?.subtitleAttribute,
+                    entityAttributes = emptyList(),
                     tileStateTemplate = setupEntity?.stateTemplate.orEmpty(),
                     tileStateDescriptionTemplate = setupEntity?.stateDescriptionTemplate.orEmpty(),
                     tileIconTemplate = setupEntity?.iconTemplate.orEmpty(),
@@ -139,6 +148,7 @@ internal class ManageTilesViewModel @Inject constructor(
                 )
             }
             loadEntities(serverId)
+            loadSelectedEntityAttributes(serverId, setupEntity?.entityId)
         }
     }
 
@@ -151,7 +161,31 @@ internal class ManageTilesViewModel @Inject constructor(
     }
 
     fun selectEntityId(entityId: String?) {
-        _state.update { it.copy(selectedEntityId = entityId) }
+        _state.update {
+            it.copy(
+                selectedEntityId = entityId,
+                labelAttribute = null,
+                subtitleAttribute = null,
+                entityAttributes = emptyList(),
+            )
+        }
+        loadSelectedEntityAttributes(_state.value.selectedServerId, entityId)
+    }
+
+    fun selectLabelSource(source: TileTextSource) {
+        _state.update { it.copy(labelSource = source, labelAttribute = null) }
+    }
+
+    fun selectLabelAttribute(attribute: String) {
+        _state.update { it.copy(labelAttribute = attribute) }
+    }
+
+    fun selectSubtitleSource(source: TileTextSource) {
+        _state.update { it.copy(subtitleSource = source, subtitleAttribute = null) }
+    }
+
+    fun selectSubtitleAttribute(attribute: String) {
+        _state.update { it.copy(subtitleAttribute = attribute) }
     }
 
     fun selectStateEntityId(entityId: String?) {
@@ -163,7 +197,21 @@ internal class ManageTilesViewModel @Inject constructor(
     }
 
     fun selectTileType(tileType: TileType) {
-        _state.update { it.copy(selectedTileType = tileType) }
+        _state.update {
+            if (tileType == TileType.Entity &&
+                it.selectedTileType != TileType.Entity &&
+                it.tileLabel.isBlank() &&
+                it.tileSubtitle.isBlank()
+            ) {
+                it.copy(
+                    selectedTileType = tileType,
+                    labelSource = TileTextSource.NAME,
+                    subtitleSource = TileTextSource.STATE,
+                )
+            } else {
+                it.copy(selectedTileType = tileType)
+            }
+        }
         loadEntities(_state.value.selectedServerId)
     }
 
@@ -214,6 +262,21 @@ internal class ManageTilesViewModel @Inject constructor(
 
     fun setAuthRequired(value: Boolean) = _state.update { it.copy(tileAuthRequired = value) }
 
+    private fun loadSelectedEntityAttributes(serverId: Int, entityId: String?) {
+        if (entityId.isNullOrBlank()) return
+        viewModelScope.launch {
+            val attributes = runCatching {
+                serverManager.integrationRepository(serverId).getEntity(entityId)?.attributes?.keys?.sorted().orEmpty()
+            }.getOrElse {
+                Timber.w(it, "Unable to load attributes for $entityId")
+                emptyList()
+            }
+            _state.update { state ->
+                if (state.selectedEntityId == entityId) state.copy(entityAttributes = attributes) else state
+            }
+        }
+    }
+
     private fun loadEntities(serverId: Int) {
         loadEntitiesJob?.cancel()
         loadEntitiesJob = viewModelScope.launch {
@@ -261,26 +324,43 @@ internal class ManageTilesViewModel @Inject constructor(
     }
 
     /** Snapshot of the state as a [TileEntity], keeping the database id and added flag of [existing]. */
-    private fun ManageTilesState.toTileEntity(existing: TileEntity?) = TileEntity(
-        id = existing?.id ?: 0,
-        tileId = selectedTileId.value,
-        serverId = selectedServerId,
-        added = existing?.added ?: false,
-        iconName = customIcon?.mdiName,
-        entityId = selectedEntityId.orEmpty(),
-        label = tileLabel,
-        subtitle = tileSubtitle.ifBlank { null },
-        shouldVibrate = selectedShouldVibrate,
-        authRequired = tileAuthRequired,
-        tileType = selectedTileType.storageValue,
-        stateEntityId = selectedStateEntityId,
-        stateTemplate = tileStateTemplate.ifBlank { null },
-        stateDescriptionTemplate = tileStateDescriptionTemplate.ifBlank { null },
-        iconTemplate = tileIconTemplate.ifBlank { null },
-        contentDescriptionTemplate = tileContentDescriptionTemplate.ifBlank { null },
-        tapAction = selectedTapAction.storageValue,
-        actionDomain = actionDomain.ifBlank { null },
-        actionName = actionName.ifBlank { null },
-        actionDataTemplate = actionDataTemplate.ifBlank { null },
-    )
+    private fun ManageTilesState.toTileEntity(existing: TileEntity?): TileEntity {
+        val displayName = selectedEntityId?.let { entityId ->
+            (entityDisplayState as? EntityDisplayState.Loaded)
+                ?.entity(entityId)
+                ?.name
+        }
+        val storedLabel = if (selectedTileType == TileType.Entity && labelSource != TileTextSource.FIXED) {
+            displayName ?: selectedEntityId.orEmpty()
+        } else {
+            tileLabel
+        }
+
+        return TileEntity(
+            id = existing?.id ?: 0,
+            tileId = selectedTileId.value,
+            serverId = selectedServerId,
+            added = existing?.added ?: false,
+            iconName = customIcon?.mdiName,
+            entityId = selectedEntityId.orEmpty(),
+            label = storedLabel,
+            subtitle = tileSubtitle.ifBlank { null },
+            shouldVibrate = selectedShouldVibrate,
+            authRequired = tileAuthRequired,
+            tileType = selectedTileType.storageValue,
+            stateEntityId = selectedStateEntityId,
+            stateTemplate = tileStateTemplate.ifBlank { null },
+            stateDescriptionTemplate = tileStateDescriptionTemplate.ifBlank { null },
+            iconTemplate = tileIconTemplate.ifBlank { null },
+            contentDescriptionTemplate = tileContentDescriptionTemplate.ifBlank { null },
+            tapAction = selectedTapAction.storageValue,
+            actionDomain = actionDomain.ifBlank { null },
+            actionName = actionName.ifBlank { null },
+            actionDataTemplate = actionDataTemplate.ifBlank { null },
+            labelSource = labelSource.storageValue,
+            labelAttribute = labelAttribute,
+            subtitleSource = subtitleSource.storageValue,
+            subtitleAttribute = subtitleAttribute,
+        )
+    }
 }

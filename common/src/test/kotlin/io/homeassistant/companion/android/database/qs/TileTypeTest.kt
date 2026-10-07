@@ -20,6 +20,15 @@ class TileTypeTest {
     }
 
     @Test
+    fun `Given stored text source when reading then map to matching source`() {
+        assertEquals(TileTextSource.FIXED, TileTextSource.fromStorageValue("fixed"))
+        assertEquals(TileTextSource.NAME, TileTextSource.fromStorageValue("name"))
+        assertEquals(TileTextSource.STATE, TileTextSource.fromStorageValue("state"))
+        assertEquals(TileTextSource.ATTRIBUTE, TileTextSource.fromStorageValue("attribute"))
+        assertEquals(TileTextSource.FIXED, TileTextSource.fromStorageValue("unknown"))
+    }
+
+    @Test
     fun `Given stored tap action when reading then map to matching action`() {
         assertEquals(TileTapAction.Automatic, TileTapAction.fromStorageValue("automatic"))
         assertEquals(TileTapAction.MoreInfo, TileTapAction.fromStorageValue("more_info"))
@@ -31,6 +40,18 @@ class TileTypeTest {
     @Test
     fun `Given basic tile without entity when checking setup then reject it`() {
         assertFalse(tile(type = TileType.Basic, entityId = "").isSetup)
+    }
+
+    @Test
+    fun `Given visual entity tile with dynamic name and blank stored label when checking setup then accept it`() {
+        assertTrue(
+            tile(
+                type = TileType.Entity,
+                entityId = "light.kitchen",
+                label = "",
+                labelSource = TileTextSource.NAME,
+            ).isSetup,
+        )
     }
 
     @Test
@@ -48,6 +69,8 @@ class TileTypeTest {
     private fun tile(
         type: TileType,
         entityId: String,
+        label: String = "Test",
+        labelSource: TileTextSource = TileTextSource.FIXED,
         stateTemplate: String? = null,
         tapAction: TileTapAction = TileTapAction.Automatic,
     ) = TileEntity(
@@ -56,8 +79,9 @@ class TileTypeTest {
         serverId = 1,
         iconName = null,
         entityId = entityId,
-        label = "Test",
+        label = label,
         subtitle = null,
+        labelSource = labelSource.storageValue,
         shouldVibrate = false,
         authRequired = false,
         tileType = type.storageValue,

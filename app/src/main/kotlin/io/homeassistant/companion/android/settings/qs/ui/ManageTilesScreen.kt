@@ -58,6 +58,7 @@ import io.homeassistant.companion.android.common.compose.theme.HATextStyle
 import io.homeassistant.companion.android.common.compose.theme.HAThemeForPreview
 import io.homeassistant.companion.android.common.compose.theme.LocalHAColorScheme
 import io.homeassistant.companion.android.database.qs.TileTapAction
+import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.settings.qs.ManageTilesState
 import io.homeassistant.companion.android.settings.qs.ManageTilesViewModel
@@ -103,6 +104,10 @@ internal fun ManageTilesScreen(viewModel: ManageTilesViewModel, modifier: Modifi
         onServerSelected = viewModel::selectServerId,
         onTileLabelChange = viewModel::setTileLabel,
         onTileSubtitleChange = viewModel::setTileSubtitle,
+        onLabelSourceSelected = viewModel::selectLabelSource,
+        onLabelAttributeSelected = viewModel::selectLabelAttribute,
+        onSubtitleSourceSelected = viewModel::selectSubtitleSource,
+        onSubtitleAttributeSelected = viewModel::selectSubtitleAttribute,
         onSelectionChanged = viewModel::selectEntityId,
         onStateEntityChanged = viewModel::selectStateEntityId,
         onStateTemplateChange = viewModel::setTileStateTemplate,
@@ -132,6 +137,10 @@ internal fun ManageTilesContent(
     onServerSelected: (Int) -> Unit,
     onTileLabelChange: (String) -> Unit,
     onTileSubtitleChange: (String) -> Unit,
+    onLabelSourceSelected: (TileTextSource) -> Unit,
+    onLabelAttributeSelected: (String) -> Unit,
+    onSubtitleSourceSelected: (TileTextSource) -> Unit,
+    onSubtitleAttributeSelected: (String) -> Unit,
     onSelectionChanged: (String?) -> Unit,
     onStateEntityChanged: (String?) -> Unit,
     onStateTemplateChange: (String) -> Unit,
@@ -188,6 +197,12 @@ internal fun ManageTilesContent(
             TileConfigContent(
                 state = state,
                 onSelectionChanged = onSelectionChanged,
+                onLabelSourceSelected = onLabelSourceSelected,
+                onLabelAttributeSelected = onLabelAttributeSelected,
+                onSubtitleSourceSelected = onSubtitleSourceSelected,
+                onSubtitleAttributeSelected = onSubtitleAttributeSelected,
+                onTileLabelChange = onTileLabelChange,
+                onTileSubtitleChange = onTileSubtitleChange,
                 onStateEntityChanged = onStateEntityChanged,
                 onStateTemplateChange = onStateTemplateChange,
                 onStateDescriptionTemplateChange = onStateDescriptionTemplateChange,
@@ -266,22 +281,24 @@ private fun ColumnScope.TileLabelContent(
         color = LocalHAColorScheme.current.colorTextSecondary,
     )
 
-    HATextField(
-        value = state.tileLabel,
-        onValueChange = onTileLabelChange,
-        label = { Text(text = stringResource(commonR.string.tile_label)) },
-        maxLines = 1,
-        modifier = Modifier.fillMaxWidth(),
-    )
-
-    if (state.showSubtitle) {
+    if (state.selectedTileType != TileType.Entity) {
         HATextField(
-            value = state.tileSubtitle,
-            onValueChange = onTileSubtitleChange,
-            label = { Text(text = stringResource(commonR.string.tile_subtitle)) },
+            value = state.tileLabel,
+            onValueChange = onTileLabelChange,
+            label = { Text(text = stringResource(commonR.string.tile_label)) },
             maxLines = 1,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        if (state.showSubtitle) {
+            HATextField(
+                value = state.tileSubtitle,
+                onValueChange = onTileSubtitleChange,
+                label = { Text(text = stringResource(commonR.string.tile_subtitle)) },
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
@@ -289,6 +306,12 @@ private fun ColumnScope.TileLabelContent(
 private fun ColumnScope.TileConfigContent(
     state: ManageTilesState,
     onSelectionChanged: (String?) -> Unit,
+    onLabelSourceSelected: (TileTextSource) -> Unit,
+    onLabelAttributeSelected: (String) -> Unit,
+    onSubtitleSourceSelected: (TileTextSource) -> Unit,
+    onSubtitleAttributeSelected: (String) -> Unit,
+    onTileLabelChange: (String) -> Unit,
+    onTileSubtitleChange: (String) -> Unit,
     onStateEntityChanged: (String?) -> Unit,
     onStateTemplateChange: (String) -> Unit,
     onStateDescriptionTemplateChange: (String) -> Unit,
@@ -310,6 +333,72 @@ private fun ColumnScope.TileConfigContent(
         addButtonText = stringResource(commonR.string.tile_entity),
     )
 
+    if (state.selectedTileType == TileType.Entity) {
+        val textSources: List<HADropdownItem<TileTextSource>> = listOf(
+            HADropdownItem(TileTextSource.NAME, stringResource(commonR.string.tile_text_source_name)),
+            HADropdownItem(TileTextSource.STATE, stringResource(commonR.string.tile_text_source_state)),
+            HADropdownItem(TileTextSource.ATTRIBUTE, stringResource(commonR.string.tile_text_source_attribute)),
+            HADropdownItem(TileTextSource.FIXED, stringResource(commonR.string.tile_text_source_fixed)),
+        )
+        val attributes = state.entityAttributes.map { HADropdownItem(it, it) }
+
+        HADropdownMenu(
+            items = textSources,
+            selectedKey = state.labelSource,
+            onItemSelected = onLabelSourceSelected,
+            label = stringResource(commonR.string.tile_label_content),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        when (state.labelSource) {
+            TileTextSource.FIXED -> HATextField(
+                value = state.tileLabel,
+                onValueChange = onTileLabelChange,
+                label = { Text(text = stringResource(commonR.string.tile_fixed_text)) },
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TileTextSource.ATTRIBUTE -> HADropdownMenu(
+                items = attributes,
+                selectedKey = state.labelAttribute,
+                onItemSelected = onLabelAttributeSelected,
+                label = stringResource(commonR.string.tile_attribute),
+                placeholder = stringResource(commonR.string.select),
+                enabled = attributes.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            else -> Unit
+        }
+
+        if (state.showSubtitle) {
+            HADropdownMenu(
+                items = textSources,
+                selectedKey = state.subtitleSource,
+                onItemSelected = onSubtitleSourceSelected,
+                label = stringResource(commonR.string.tile_subtitle_content),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            when (state.subtitleSource) {
+                TileTextSource.FIXED -> HATextField(
+                    value = state.tileSubtitle,
+                    onValueChange = onTileSubtitleChange,
+                    label = { Text(text = stringResource(commonR.string.tile_fixed_text)) },
+                    maxLines = 1,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TileTextSource.ATTRIBUTE -> HADropdownMenu(
+                    items = attributes,
+                    selectedKey = state.subtitleAttribute,
+                    onItemSelected = onSubtitleAttributeSelected,
+                    label = stringResource(commonR.string.tile_attribute),
+                    placeholder = stringResource(commonR.string.select),
+                    enabled = attributes.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                else -> Unit
+            }
+        }
+    }
+
     if (state.selectedTileType != TileType.Basic) {
         EntityPicker(
             displayState = state.entityDisplayState,
@@ -321,34 +410,36 @@ private fun ColumnScope.TileConfigContent(
         val templateHint = @Composable {
             Text(text = stringResource(commonR.string.tile_template_hint))
         }
-        HATextField(
-            value = state.tileStateTemplate,
-            onValueChange = onStateTemplateChange,
-            label = { Text(text = stringResource(commonR.string.tile_state_template)) },
-            supportingText = templateHint,
-            maxLines = 3,
-        )
-        HATextField(
-            value = state.tileStateDescriptionTemplate,
-            onValueChange = onStateDescriptionTemplateChange,
-            label = { Text(text = stringResource(commonR.string.tile_state_description_template)) },
-            supportingText = templateHint,
-            maxLines = 3,
-        )
-        HATextField(
-            value = state.tileIconTemplate,
-            onValueChange = onIconTemplateChange,
-            label = { Text(text = stringResource(commonR.string.tile_icon_template)) },
-            supportingText = templateHint,
-            maxLines = 3,
-        )
-        HATextField(
-            value = state.tileContentDescriptionTemplate,
-            onValueChange = onContentDescriptionTemplateChange,
-            label = { Text(text = stringResource(commonR.string.tile_content_description_template)) },
-            supportingText = templateHint,
-            maxLines = 3,
-        )
+        if (state.selectedTileType == TileType.Template) {
+            HATextField(
+                value = state.tileStateTemplate,
+                onValueChange = onStateTemplateChange,
+                label = { Text(text = stringResource(commonR.string.tile_state_template)) },
+                supportingText = templateHint,
+                maxLines = 3,
+            )
+            HATextField(
+                value = state.tileStateDescriptionTemplate,
+                onValueChange = onStateDescriptionTemplateChange,
+                label = { Text(text = stringResource(commonR.string.tile_state_description_template)) },
+                supportingText = templateHint,
+                maxLines = 3,
+            )
+            HATextField(
+                value = state.tileIconTemplate,
+                onValueChange = onIconTemplateChange,
+                label = { Text(text = stringResource(commonR.string.tile_icon_template)) },
+                supportingText = templateHint,
+                maxLines = 3,
+            )
+            HATextField(
+                value = state.tileContentDescriptionTemplate,
+                onValueChange = onContentDescriptionTemplateChange,
+                label = { Text(text = stringResource(commonR.string.tile_content_description_template)) },
+                supportingText = templateHint,
+                maxLines = 3,
+            )
+        }
 
         val tapActions: List<HADropdownItem<TileTapAction>> = listOf(
             HADropdownItem(TileTapAction.Automatic, stringResource(commonR.string.tile_action_automatic)),
@@ -503,6 +594,10 @@ private fun ManageTilesPreview() {
             onServerSelected = {},
             onTileLabelChange = {},
             onTileSubtitleChange = {},
+            onLabelSourceSelected = {},
+            onLabelAttributeSelected = {},
+            onSubtitleSourceSelected = {},
+            onSubtitleAttributeSelected = {},
             onSelectionChanged = {},
             onStateEntityChanged = {},
             onStateTemplateChange = {},
@@ -541,6 +636,10 @@ private fun ManageTilesUpdatePreview() {
             onServerSelected = {},
             onTileLabelChange = {},
             onTileSubtitleChange = {},
+            onLabelSourceSelected = {},
+            onLabelAttributeSelected = {},
+            onSubtitleSourceSelected = {},
+            onSubtitleAttributeSelected = {},
             onSelectionChanged = {},
             onStateEntityChanged = {},
             onStateTemplateChange = {},

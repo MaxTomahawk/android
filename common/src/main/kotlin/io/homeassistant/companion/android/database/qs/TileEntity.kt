@@ -47,6 +47,14 @@ data class TileEntity(
     val actionName: String? = null,
     @ColumnInfo(name = "action_data_template")
     val actionDataTemplate: String? = null,
+    @ColumnInfo(name = "label_source", defaultValue = "'fixed'")
+    val labelSource: String = TileTextSource.FIXED.storageValue,
+    @ColumnInfo(name = "label_attribute")
+    val labelAttribute: String? = null,
+    @ColumnInfo(name = "subtitle_source", defaultValue = "'fixed'")
+    val subtitleSource: String = TileTextSource.FIXED.storageValue,
+    @ColumnInfo(name = "subtitle_attribute")
+    val subtitleAttribute: String? = null,
 )
 
 val TileEntity.type: TileType
@@ -55,18 +63,30 @@ val TileEntity.type: TileType
 val TileEntity.tapActionType: TileTapAction
     get() = TileTapAction.fromStorageValue(tapAction)
 
+val TileEntity.labelSourceType: TileTextSource
+    get() = TileTextSource.fromStorageValue(labelSource)
+
+val TileEntity.subtitleSourceType: TileTextSource
+    get() = TileTextSource.fromStorageValue(subtitleSource)
+
 val TileEntity.stateSourceEntityId: String
     get() = stateEntityId?.takeIf { it.isNotBlank() } ?: entityId
 
 val TileEntity.isSetup: Boolean
-    get() = label.isNotBlank() &&
-        when (type) {
-            TileType.Basic, TileType.Entity -> entityId.isNotBlank()
-            TileType.Template -> entityId.isNotBlank() ||
-                !stateTemplate.isNullOrBlank() ||
-                tapActionType == TileTapAction.Custom ||
-                tapActionType == TileTapAction.None
+    get() {
+        val labelConfigured = when {
+            type == TileType.Entity && labelSourceType != TileTextSource.FIXED -> true
+            else -> label.isNotBlank()
         }
+        return labelConfigured &&
+            when (type) {
+                TileType.Basic, TileType.Entity -> entityId.isNotBlank()
+                TileType.Template -> entityId.isNotBlank() ||
+                    !stateTemplate.isNullOrBlank() ||
+                    tapActionType == TileTapAction.Custom ||
+                    tapActionType == TileTapAction.None
+            }
+    }
 
 val TileEntity.numberedId: Int
     get() = this.tileId.split("_")[1].toInt()
