@@ -79,6 +79,8 @@ data class TileEntity(
     val holdNavigationPath: String? = null,
     @ColumnInfo(name = "hold_url")
     val holdUrl: String? = null,
+    @ColumnInfo(name = "control_dialog_json")
+    val controlDialogJson: String? = null,
 )
 
 val TileEntity.type: TileType

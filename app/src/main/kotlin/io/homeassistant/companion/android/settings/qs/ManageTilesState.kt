@@ -9,6 +9,7 @@ import io.homeassistant.companion.android.common.data.integration.Action
 import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayState
 import io.homeassistant.companion.android.common.data.integration.display.EntityDisplayWithContext
 import io.homeassistant.companion.android.common.data.servers.ServerManager
+import io.homeassistant.companion.android.database.qs.TileControlDialogConfig
 import io.homeassistant.companion.android.database.qs.TileIconRule
 import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileTextPart
@@ -38,8 +39,9 @@ internal data class ManageTilesState(
     val editorMode: TileEditorMode = TileEditorMode.VISUAL,
     val yamlConfig: String = "",
     val yamlError: String? = null,
-    val selectedTapAction: TileTapAction = TileTapAction.Automatic,
-    val selectedHoldAction: TileTapAction = TileTapAction.MoreInfo,
+    val selectedTapAction: TileTapAction = TileTapAction.Controls,
+    val selectedHoldAction: TileTapAction = TileTapAction.Automatic,
+    val controlDialogConfig: TileControlDialogConfig = TileControlDialogConfig(),
     val availableActions: List<Action> = emptyList(),
     val tapActionFieldValues: Map<String, String> = emptyMap(),
     val holdActionFieldValues: Map<String, String> = emptyMap(),
@@ -109,7 +111,8 @@ internal data class ManageTilesState(
         url: String,
         fieldValues: Map<String, String>,
     ) = when (action) {
-        TileTapAction.Automatic, TileTapAction.Toggle, TileTapAction.MoreInfo -> selectedEntityId != null
+        TileTapAction.Automatic, TileTapAction.Toggle, TileTapAction.MoreInfo, TileTapAction.Controls ->
+            selectedEntityId != null
         TileTapAction.PerformAction ->
             domain.isNotBlank() &&
                 name.isNotBlank() &&
@@ -125,7 +128,15 @@ internal data class ManageTilesState(
             ?.actionData
             ?.fields
             .orEmpty()
-        return fields.all { (key, field) -> field.required != true || !fieldValues[key].isNullOrBlank() }
+        return requiredFieldsPresent(fields, fieldValues)
+    }
+
+    private fun requiredFieldsPresent(
+        fields: Map<String, io.homeassistant.companion.android.common.data.integration.ActionFields>,
+        values: Map<String, String>,
+    ): Boolean = fields.all { (key, field) ->
+        val ownFieldValid = field.fields != null || field.required != true || !values[key].isNullOrBlank()
+        ownFieldValid && requiredFieldsPresent(field.fields.orEmpty(), values)
     }
 
     private val tapActionValid = actionValid(

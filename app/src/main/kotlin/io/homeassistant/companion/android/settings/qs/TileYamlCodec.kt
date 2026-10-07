@@ -3,6 +3,10 @@ package io.homeassistant.companion.android.settings.qs
 import io.github.timoptr.mdiicons.Mdi
 import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.common.util.mdiName
+import io.homeassistant.companion.android.database.qs.TileControlDialogConfig
+import io.homeassistant.companion.android.database.qs.TileControlDialogMode
+import io.homeassistant.companion.android.database.qs.TileControlItem
+import io.homeassistant.companion.android.database.qs.TileControlType
 import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileTextPart
 import io.homeassistant.companion.android.database.qs.TileTextSource
@@ -43,6 +47,7 @@ internal object TileYamlCodec {
             "icon" to state.customIcon?.mdiName,
             "icon_rules" to state.iconRules.map { linkedMapOf("state" to it.state, "icon" to it.iconName) },
             "active_states" to state.activeStates.filter(String::isNotBlank),
+            "control_dialog" to encodeControlDialog(state.controlDialogConfig),
             "tap_action" to encodeAction(
                 state.selectedTapAction,
                 state.actionDomain,
@@ -90,8 +95,9 @@ internal object TileYamlCodec {
         val root = loaded.asStringMap()
         val labelParts = decodeParts(root["label"])
         val subtitleParts = decodeParts(root["subtitle"])
-        val tap = decodeAction(root["tap_action"], TileTapAction.Automatic)
-        val hold = decodeAction(root["hold_action"], TileTapAction.MoreInfo)
+        val tap = decodeAction(root["tap_action"], TileTapAction.Controls)
+        val hold = decodeAction(root["hold_action"], TileTapAction.Automatic)
+        val controlDialog = decodeControlDialog(root["control_dialog"])
         val templates = root["templates"].asStringMap()
         val iconRules = root["icon_rules"].asList().mapNotNull { item ->
             val map = item.asStringMap()
@@ -125,6 +131,7 @@ internal object TileYamlCodec {
             customIcon = root["icon"]?.toString()?.takeIf(String::isNotBlank)?.let(Mdi::fromHaName),
             iconRules = iconRules,
             activeStates = activeStates,
+            controlDialogConfig = controlDialog,
             selectedTapAction = tap.type,
             actionDomain = tap.domain,
             actionName = tap.action,
@@ -152,6 +159,63 @@ internal object TileYamlCodec {
             selectedShouldVibrate = root["vibrate"] as? Boolean ?: false,
             tileAuthRequired = root["require_unlock"] as? Boolean ?: false,
         )
+    }
+
+    private fun encodeControlDialog(config: TileControlDialogConfig): Map<String, Any?> = linkedMapOf(
+        "mode" to config.mode.name.lowercase(),
+        "controls" to config.controls.map { item ->
+            linkedMapOf<String, Any?>(
+                "type" to item.type.name.lowercase(),
+                "entity" to item.entityId,
+                "label" to item.label,
+                "attribute" to item.attribute,
+                "action" to listOfNotNull(item.actionDomain, item.actionName)
+                    .takeIf { it.size == 2 }
+                    ?.joinToString("."),
+                "field" to item.actionField,
+                "data" to item.actionData.filterValues(String::isNotBlank),
+                "min" to item.min,
+                "max" to item.max,
+                "step" to item.step,
+                "unit" to item.unit,
+            ).filterValues { it != null && it != "" }
+        },
+    )
+
+    private fun decodeControlDialog(raw: Any?): TileControlDialogConfig {
+        val map = raw.asStringMap()
+        val mode = when (map["mode"]?.toString()?.lowercase()) {
+            "custom" -> TileControlDialogMode.CUSTOM
+            else -> TileControlDialogMode.AUTOMATIC
+        }
+        val controls = map["controls"].asList().mapNotNull { entry ->
+            val item = entry.asStringMap()
+            val type = runCatching {
+                TileControlType.valueOf(item["type"]?.toString()?.uppercase().orEmpty())
+            }.getOrNull() ?: return@mapNotNull null
+            val action = item["action"]?.toString().orEmpty().split(".", limit = 2)
+            TileControlItem(
+                type = type,
+                entityId = item["entity"]?.toString(),
+                label = item["label"]?.toString(),
+                attribute = item["attribute"]?.toString(),
+                actionDomain = action.getOrNull(0)?.takeIf(String::isNotBlank),
+                actionName = action.getOrNull(1)?.takeIf(String::isNotBlank),
+                actionField = item["field"]?.toString(),
+                actionData = item["data"].asStringMap().mapValues { (_, value) ->
+                    when (value) {
+                        is List<*> -> value.joinToString(", ") { it.toString() }
+                        null -> ""
+                        else -> value.toString()
+                    }
+                },
+                min = (item["min"] as? Number)?.toFloat(),
+                max = (item["max"] as? Number)?.toFloat(),
+                step = (item["step"] as? Number)?.toFloat(),
+                unit = item["unit"]?.toString(),
+            )
+        }
+        return TileControlDialogConfig(mode = mode, controls = controls)
     }
 
     private fun legacyPart(source: TileTextSource, fixed: String, attribute: String?): TileTextPart = when (source) {

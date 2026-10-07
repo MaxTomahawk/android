@@ -19,6 +19,7 @@ import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.common.util.mdiName
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
+import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileTextPart
 import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
@@ -128,6 +129,15 @@ class ManageTilesViewModelTest {
     )
 
     @Test
+    fun `Given a new tile when created then tap defaults to controls and hold defaults to automatic`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(TileTapAction.Controls, viewModel.state.value.selectedTapAction)
+        assertEquals(TileTapAction.Automatic, viewModel.state.value.selectedHoldAction)
+    }
+
+    @Test
     fun `Given no saved tile id when created then first tile is selected`() = runTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -178,6 +188,8 @@ class ManageTilesViewModelTest {
         assertTrue(viewModel.state.value.tileAuthRequired)
         assertEquals(2, viewModel.state.value.selectedServerId)
         assertEquals("mdi:account", viewModel.state.value.customIcon?.mdiName)
+        assertEquals(TileTapAction.Automatic, viewModel.state.value.selectedTapAction)
+        assertEquals(TileTapAction.MoreInfo, viewModel.state.value.selectedHoldAction)
         assertEquals(commonR.string.tile_save, viewModel.state.value.submitButtonLabel)
     }
 

@@ -15,6 +15,10 @@ sealed interface TileTapAction {
         override val storageValue = "more_info"
     }
 
+    data object Controls : TileTapAction {
+        override val storageValue = "controls"
+    }
+
     data object PerformAction : TileTapAction {
         override val storageValue = "perform_action"
     }
@@ -39,6 +43,7 @@ sealed interface TileTapAction {
         fun fromStorageValue(value: String): TileTapAction = when (value) {
             Toggle.storageValue -> Toggle
             MoreInfo.storageValue -> MoreInfo
+            Controls.storageValue -> Controls
             PerformAction.storageValue, "custom" -> PerformAction
             Navigate.storageValue -> Navigate
             Url.storageValue -> Url

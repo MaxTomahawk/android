@@ -27,6 +27,8 @@ import io.homeassistant.companion.android.common.util.SdkVersion
 import io.homeassistant.companion.android.common.util.fromHaName
 import io.homeassistant.companion.android.common.util.kotlinJsonMapper
 import io.homeassistant.companion.android.common.util.mdiName
+import io.homeassistant.companion.android.database.qs.TileControlDialogMode
+import io.homeassistant.companion.android.database.qs.TileControlItem
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
 import io.homeassistant.companion.android.database.qs.TileIconRule
@@ -35,9 +37,11 @@ import io.homeassistant.companion.android.database.qs.TileTextPart
 import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
 import io.homeassistant.companion.android.database.qs.decodeStringList
+import io.homeassistant.companion.android.database.qs.decodeTileControlDialogConfig
 import io.homeassistant.companion.android.database.qs.decodeTileIconRules
 import io.homeassistant.companion.android.database.qs.decodeTileTextParts
 import io.homeassistant.companion.android.database.qs.encodeStringList
+import io.homeassistant.companion.android.database.qs.encodeTileControlDialogConfig
 import io.homeassistant.companion.android.database.qs.encodeTileIconRules
 import io.homeassistant.companion.android.database.qs.encodeTileTextParts
 import io.homeassistant.companion.android.database.qs.getHighestInUse
@@ -147,8 +151,9 @@ internal class ManageTilesViewModel @Inject constructor(
                     },
                     yamlConfig = "",
                     yamlError = null,
-                    selectedTapAction = setupEntity?.tapActionType ?: TileTapAction.Automatic,
-                    selectedHoldAction = setupEntity?.holdActionType ?: TileTapAction.MoreInfo,
+                    selectedTapAction = setupEntity?.tapActionType ?: TileTapAction.Controls,
+                    selectedHoldAction = setupEntity?.holdActionType ?: TileTapAction.Automatic,
+                    controlDialogConfig = decodeTileControlDialogConfig(setupEntity?.controlDialogJson),
                     labelSource = setupEntity?.labelSourceType ?: TileTextSource.NAME,
                     labelAttribute = setupEntity?.labelAttribute,
                     subtitleSource = setupEntity?.subtitleSourceType ?: TileTextSource.STATE,
@@ -250,6 +255,51 @@ internal class ManageTilesViewModel @Inject constructor(
 
     fun selectHoldAction(action: TileTapAction) {
         _state.update { it.copy(selectedHoldAction = action) }
+    }
+
+    fun setControlDialogMode(mode: TileControlDialogMode) = _state.update {
+        it.copy(controlDialogConfig = it.controlDialogConfig.copy(mode = mode))
+    }
+
+    fun addControlDialogItem() = _state.update {
+        it.copy(
+            controlDialogConfig = it.controlDialogConfig.copy(
+                mode = TileControlDialogMode.CUSTOM,
+                controls = it.controlDialogConfig.controls + TileControlItem(),
+            ),
+        )
+    }
+
+    fun removeControlDialogItem(index: Int) = _state.update {
+        it.copy(
+            controlDialogConfig = it.controlDialogConfig.copy(
+                controls = it.controlDialogConfig.controls.filterIndexed { i, _ -> i != index },
+            ),
+        )
+    }
+
+    fun moveControlDialogItem(index: Int, offset: Int) = _state.update {
+        it.copy(
+            controlDialogConfig = it.controlDialogConfig.copy(
+                controls = it.controlDialogConfig.controls.moveItem(index, index + offset),
+            ),
+        )
+    }
+
+    fun updateControlDialogItem(index: Int, item: TileControlItem) = _state.update {
+        it.copy(
+            controlDialogConfig = it.controlDialogConfig.copy(
+                controls = it.controlDialogConfig.controls.mapIndexed { i, current ->
+                    if (i ==
+                        index
+                    ) {
+                        item
+                    } else {
+                        current
+                    }
+                },
+            ),
+        )
     }
 
     fun selectTapPerformAction(actionKey: String) {
@@ -798,6 +848,7 @@ internal class ManageTilesViewModel @Inject constructor(
             tapUrl = tapUrl.ifBlank { null },
             holdNavigationPath = holdNavigationPath.ifBlank { null },
             holdUrl = holdUrl.ifBlank { null },
+            controlDialogJson = encodeTileControlDialogConfig(controlDialogConfig),
         )
     }
 }

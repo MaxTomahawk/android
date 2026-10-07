@@ -3,6 +3,10 @@ package io.homeassistant.companion.android.settings.qs
 import io.github.timoptr.mdiicons.Mdi
 import io.github.timoptr.mdiicons.generated.Lightbulb
 import io.homeassistant.companion.android.common.util.mdiName
+import io.homeassistant.companion.android.database.qs.TileControlDialogConfig
+import io.homeassistant.companion.android.database.qs.TileControlDialogMode
+import io.homeassistant.companion.android.database.qs.TileControlItem
+import io.homeassistant.companion.android.database.qs.TileControlType
 import io.homeassistant.companion.android.database.qs.TileIconRule
 import io.homeassistant.companion.android.database.qs.TileTapAction
 import io.homeassistant.companion.android.database.qs.TileTextPart
@@ -33,6 +37,24 @@ class TileYamlCodecTest {
                 TileIconRule("off", "mdi:lightbulb-off"),
             ),
             activeStates = listOf("on", "opening"),
+            controlDialogConfig = TileControlDialogConfig(
+                mode = TileControlDialogMode.CUSTOM,
+                controls = listOf(
+                    TileControlItem(
+                        type = TileControlType.SLIDER,
+                        entityId = "light.kitchen",
+                        label = "Brightness",
+                        attribute = "brightness",
+                        actionDomain = "light",
+                        actionName = "turn_on",
+                        actionField = "brightness_pct",
+                        min = 0f,
+                        max = 100f,
+                        step = 1f,
+                        unit = "%",
+                    ),
+                ),
+            ),
             selectedTapAction = TileTapAction.PerformAction,
             actionDomain = "light",
             actionName = "turn_on",
@@ -63,6 +85,7 @@ class TileYamlCodecTest {
         assertEquals(Mdi.Lightbulb.mdiName, decoded.customIcon?.mdiName)
         assertEquals(original.iconRules, decoded.iconRules)
         assertEquals(original.activeStates, decoded.activeStates)
+        assertEquals(original.controlDialogConfig, decoded.controlDialogConfig)
         assertEquals(original.selectedTapAction, decoded.selectedTapAction)
         assertEquals(original.actionDomain, decoded.actionDomain)
         assertEquals(original.actionName, decoded.actionName)
@@ -107,7 +130,7 @@ class TileYamlCodecTest {
     }
 
     @Test
-    fun `Given missing hold action when decoding then use modern more-info default`() {
+    fun `Given missing actions when decoding then use modern controls and automatic defaults`() {
         val decoded = TileYamlCodec.decode(
             """
             tile_type: entity
@@ -118,7 +141,7 @@ class TileYamlCodecTest {
             ManageTilesState(),
         )
 
-        assertEquals(TileTapAction.Automatic, decoded.selectedTapAction)
-        assertEquals(TileTapAction.MoreInfo, decoded.selectedHoldAction)
+        assertEquals(TileTapAction.Controls, decoded.selectedTapAction)
+        assertEquals(TileTapAction.Automatic, decoded.selectedHoldAction)
     }
 }

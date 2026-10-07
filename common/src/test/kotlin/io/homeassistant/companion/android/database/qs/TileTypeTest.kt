@@ -33,6 +33,7 @@ class TileTypeTest {
         assertEquals(TileTapAction.Automatic, TileTapAction.fromStorageValue("automatic"))
         assertEquals(TileTapAction.Toggle, TileTapAction.fromStorageValue("toggle"))
         assertEquals(TileTapAction.MoreInfo, TileTapAction.fromStorageValue("more_info"))
+        assertEquals(TileTapAction.Controls, TileTapAction.fromStorageValue("controls"))
         assertEquals(TileTapAction.PerformAction, TileTapAction.fromStorageValue("perform_action"))
         assertEquals(TileTapAction.PerformAction, TileTapAction.fromStorageValue("custom"))
         assertEquals(TileTapAction.Navigate, TileTapAction.fromStorageValue("navigate"))
