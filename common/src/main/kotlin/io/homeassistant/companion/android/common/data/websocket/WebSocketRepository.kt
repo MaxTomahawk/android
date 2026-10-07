@@ -56,6 +56,15 @@ interface WebSocketRepository {
      */
     suspend fun getFloorRegistry(): List<FloorRegistryResponse>?
     suspend fun getServices(): List<DomainResponse>?
+
+    /** Execute a Home Assistant action using the native WebSocket call_service command. */
+    suspend fun callService(
+        domain: String,
+        service: String,
+        serviceData: Map<String, Any?> = emptyMap(),
+        target: Map<String, Any?> = emptyMap(),
+    ): Boolean
+
     suspend fun getStateChanges(): Flow<StateChangedEvent>?
     suspend fun getStateChanges(entityIds: List<String>): Flow<TriggerEvent>?
     suspend fun getCompressedStateAndChanges(): Flow<CompressedStateChangedEvent>?

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -23,6 +24,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import io.github.timoptr.mdiicons.Mdi
 import io.github.timoptr.mdiicons.toBitmap
+import io.homeassistant.companion.android.assist.AssistActivity
 import io.homeassistant.companion.android.common.R as commonR
 import io.homeassistant.companion.android.common.data.integration.Entity
 import io.homeassistant.companion.android.common.data.integration.EntityExt
@@ -37,12 +39,17 @@ import io.homeassistant.companion.android.common.util.kotlinJsonMapper
 import io.homeassistant.companion.android.database.qs.TileDao
 import io.homeassistant.companion.android.database.qs.TileEntity
 import io.homeassistant.companion.android.database.qs.TileTapAction
+import io.homeassistant.companion.android.database.qs.TileTextPart
 import io.homeassistant.companion.android.database.qs.TileTextSource
 import io.homeassistant.companion.android.database.qs.TileType
+import io.homeassistant.companion.android.database.qs.decodeStringList
+import io.homeassistant.companion.android.database.qs.decodeTileIconRules
+import io.homeassistant.companion.android.database.qs.decodeTileTextParts
 import io.homeassistant.companion.android.database.qs.getHighestInUse
 import io.homeassistant.companion.android.database.qs.isSetup
 import io.homeassistant.companion.android.database.qs.labelSourceType
 import io.homeassistant.companion.android.database.qs.numberedId
+import io.homeassistant.companion.android.database.qs.splitTileActionData
 import io.homeassistant.companion.android.database.qs.stateSourceEntityId
 import io.homeassistant.companion.android.database.qs.subtitleSourceType
 import io.homeassistant.companion.android.database.qs.tapActionType
@@ -199,27 +206,45 @@ internal abstract class TileExtensions : TileService() {
                     }
                 }
 
-                val label = resolveDisplayText(
-                    source = tileData.labelSourceType,
-                    fixedValue = tileData.label,
-                    attribute = tileData.labelAttribute,
-                    entity = mainEntity,
-                ) ?: tileData.label
-                tile.label = label
-                if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
-                    tile.subtitle = resolveDisplayText(
-                        source = tileData.subtitleSourceType,
-                        fixedValue = tileData.subtitle,
-                        attribute = tileData.subtitleAttribute,
+                val labelParts = decodeTileTextParts(tileData.labelPartsJson)
+                val subtitleParts = decodeTileTextParts(tileData.subtitlePartsJson)
+                val label = if (labelParts.isNotEmpty()) {
+                    resolveTextParts(labelParts, mainEntity)
+                } else {
+                    resolveDisplayText(
+                        source = tileData.labelSourceType,
+                        fixedValue = tileData.label,
+                        attribute = tileData.labelAttribute,
                         entity = mainEntity,
                     )
+                } ?: tileData.label
+                tile.label = label
+                if (SdkVersion.isAtLeast(Build.VERSION_CODES.Q)) {
+                    tile.subtitle = if (subtitleParts.isNotEmpty()) {
+                        resolveTextParts(subtitleParts, mainEntity)
+                    } else {
+                        resolveDisplayText(
+                            source = tileData.subtitleSourceType,
+                            fixedValue = tileData.subtitle,
+                            attribute = tileData.subtitleAttribute,
+                            entity = mainEntity,
+                        )
+                    }
                 }
                 tile.contentDescription = renderTileText(tileData.contentDescriptionTemplate) ?: label
 
                 tile.state = resolveTileState(tileData, stateEntity)
 
                 val renderedIcon = renderTileText(tileData.iconTemplate)?.takeIf { it.isNotBlank() }
-                getTileIcon(renderedIcon ?: tileData.iconName, mainEntity ?: stateEntity, context)?.let { icon ->
+                val stateIcon = decodeTileIconRules(tileData.iconRulesJson)
+                    .firstOrNull { rule -> rule.state.equals(stateEntity?.state, ignoreCase = true) }
+                    ?.iconName
+                    ?.takeIf { it.isNotBlank() }
+                getTileIcon(
+                    stateIcon ?: renderedIcon ?: tileData.iconName,
+                    mainEntity ?: stateEntity,
+                    context,
+                )?.let { icon ->
                     tile.icon = Icon.createWithBitmap(icon)
                 }
                 if (SdkVersion.isAtLeast(Build.VERSION_CODES.R)) {
@@ -252,6 +277,22 @@ internal abstract class TileExtensions : TileService() {
         } catch (e: Exception) {
             Timber.e(e, "Unable to set tile data for tile ID: $tileId")
             return false
+        }
+    }
+
+    private suspend fun resolveTextParts(parts: List<TileTextPart>, entity: Entity?): String = buildString {
+        parts.forEach { part ->
+            append(
+                when (part.sourceType) {
+                    TileTextSource.FIXED -> part.value.orEmpty()
+                    TileTextSource.NAME -> entity?.attributes?.get("friendly_name")?.toString()
+                        ?: entity?.entityId.orEmpty()
+                    TileTextSource.STATE -> entity?.state.orEmpty()
+                    TileTextSource.ATTRIBUTE -> part.value?.let {
+                        entity?.attributes?.get(it)?.toString()
+                    }.orEmpty()
+                },
+            )
         }
     }
 
@@ -300,8 +341,14 @@ internal abstract class TileExtensions : TileService() {
             tileData.entityId.substringBefore('.') in toggleDomainsWithLock
         if (!usesEntityState) return Tile.STATE_INACTIVE
 
+        val activeStates = decodeStringList(tileData.activeStatesJson)
         return when {
             entity == null || entity.state in setOf("unavailable", "unknown") -> Tile.STATE_UNAVAILABLE
+            activeStates.isNotEmpty() -> if (activeStates.any { it.equals(entity.state, ignoreCase = true) }) {
+                Tile.STATE_ACTIVE
+            } else {
+                Tile.STATE_INACTIVE
+            }
             entity.isActive() -> Tile.STATE_ACTIVE
             else -> Tile.STATE_INACTIVE
         }
@@ -386,59 +433,141 @@ internal abstract class TileExtensions : TileService() {
     }
 
     private suspend fun performTileAction(tileData: TileEntity) {
-        when (tileData.tapActionType) {
+        performConfiguredAction(
+            tileData = tileData,
+            actionType = tileData.tapActionType,
+            domain = tileData.actionDomain,
+            action = tileData.actionName,
+            actionData = tileData.actionDataTemplate,
+            navigationPath = tileData.tapNavigationPath,
+            url = tileData.tapUrl,
+            requestCode = tileData.tileId.hashCode(),
+        )
+    }
+
+    private suspend fun performConfiguredAction(
+        tileData: TileEntity,
+        actionType: TileTapAction,
+        domain: String?,
+        action: String?,
+        actionData: String?,
+        navigationPath: String?,
+        url: String?,
+        requestCode: Int,
+    ) {
+        when (actionType) {
             TileTapAction.Automatic -> {
-                require(tileData.entityId.isNotBlank()) { "Automatic tile action requires an entity" }
+                require(tileData.entityId.isNotBlank()) { "Tile action requires an entity" }
+                val domain = tileData.entityId.substringBefore('.')
+                if (tileData.type == TileType.Basic || domain in EntityExt.APP_PRESS_ACTION_DOMAINS) {
+                    withContext(Dispatchers.IO) {
+                        onEntityPressedWithoutState(
+                            tileData.entityId,
+                            serverManager.integrationRepository(tileData.serverId),
+                        )
+                    }
+                } else {
+                    launchFromTile(
+                        applicationContext.intentLaunchWithNavigateTo(
+                            FrontendTarget.EntityMoreInfo(tileData.entityId),
+                            tileData.serverId,
+                        ),
+                        requestCode,
+                    )
+                }
+            }
+
+            TileTapAction.Toggle -> {
+                require(tileData.entityId.isNotBlank()) { "Toggle action requires an entity" }
                 withContext(Dispatchers.IO) {
-                    onEntityPressedWithoutState(
-                        tileData.entityId,
-                        serverManager.integrationRepository(tileData.serverId),
+                    serverManager.webSocketRepository(tileData.serverId).callService(
+                        domain = "homeassistant",
+                        service = "toggle",
+                        target = mapOf("entity_id" to tileData.entityId),
                     )
                 }
             }
 
             TileTapAction.MoreInfo -> {
                 require(tileData.entityId.isNotBlank()) { "More-info tile action requires an entity" }
-                val intent = applicationContext.intentLaunchWithNavigateTo(
-                    FrontendTarget.EntityMoreInfo(tileData.entityId),
-                    tileData.serverId,
-                ).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
-                }
-                withContext(Dispatchers.Main) {
-                    TileServiceCompat.startActivityAndCollapse(
-                        this@TileExtensions,
-                        PendingIntentActivityWrapper(
-                            applicationContext,
-                            tileData.tileId.hashCode(),
-                            intent,
-                            PendingIntent.FLAG_UPDATE_CURRENT,
-                            false,
-                        ),
-                    )
-                }
+                launchFromTile(
+                    applicationContext.intentLaunchWithNavigateTo(
+                        FrontendTarget.EntityMoreInfo(tileData.entityId),
+                        tileData.serverId,
+                    ),
+                    requestCode,
+                )
             }
 
-            TileTapAction.Custom -> {
-                val domain = requireNotNull(tileData.actionDomain?.takeIf { it.isNotBlank() }) {
-                    "Custom tile action requires a domain"
+            TileTapAction.PerformAction -> {
+                val actionDomain = requireNotNull(domain?.takeIf { it.isNotBlank() }) {
+                    "Perform action requires a domain"
                 }
-                val action = requireNotNull(tileData.actionName?.takeIf { it.isNotBlank() }) {
-                    "Custom tile action requires an action"
+                val actionName = requireNotNull(action?.takeIf { it.isNotBlank() }) {
+                    "Perform action requires an action"
                 }
-                val renderedData = renderTileText(tileData.actionDataTemplate)?.trim()
+                val renderedData = renderTileText(actionData)?.trim()
                 val data = if (renderedData.isNullOrBlank()) {
                     emptyMap()
                 } else {
                     kotlinJsonMapper.decodeFromString<Map<String, Any?>>(MapAnySerializer, renderedData)
                 }
+                val payload = splitTileActionData(data)
                 withContext(Dispatchers.IO) {
-                    serverManager.integrationRepository(tileData.serverId).callAction(domain, action, data)
+                    serverManager.webSocketRepository(tileData.serverId).callService(
+                        domain = actionDomain,
+                        service = actionName,
+                        serviceData = payload.serviceData,
+                        target = payload.target,
+                    )
                 }
             }
 
+            TileTapAction.Navigate -> {
+                val path = requireNotNull(navigationPath?.takeIf { it.isNotBlank() }) {
+                    "Navigate action requires a path"
+                }
+                launchFromTile(
+                    applicationContext.intentLaunchWithNavigateTo(FrontendTarget.Path(path), tileData.serverId),
+                    requestCode,
+                )
+            }
+
+            TileTapAction.Url -> {
+                val target = requireNotNull(url?.takeIf { it.isNotBlank() }) { "URL action requires a URL" }
+                launchFromTile(Intent(Intent.ACTION_VIEW, Uri.parse(target)), requestCode)
+            }
+
+            TileTapAction.Assist -> {
+                launchFromTile(
+                    AssistActivity.newInstance(
+                        context = applicationContext,
+                        serverId = tileData.serverId,
+                        startListening = true,
+                        fromFrontend = false,
+                    ),
+                    requestCode,
+                )
+            }
+
             TileTapAction.None -> Unit
+        }
+    }
+
+    private suspend fun launchFromTile(intent: Intent, requestCode: Int) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+        withContext(Dispatchers.Main) {
+            TileServiceCompat.startActivityAndCollapse(
+                this@TileExtensions,
+                PendingIntentActivityWrapper(
+                    applicationContext,
+                    requestCode,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT,
+                    false,
+                ),
+            )
         }
     }
 

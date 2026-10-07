@@ -55,6 +55,30 @@ data class TileEntity(
     val subtitleSource: String = TileTextSource.FIXED.storageValue,
     @ColumnInfo(name = "subtitle_attribute")
     val subtitleAttribute: String? = null,
+    @ColumnInfo(name = "label_parts_json")
+    val labelPartsJson: String? = null,
+    @ColumnInfo(name = "subtitle_parts_json")
+    val subtitlePartsJson: String? = null,
+    @ColumnInfo(name = "icon_rules_json")
+    val iconRulesJson: String? = null,
+    @ColumnInfo(name = "active_states_json")
+    val activeStatesJson: String? = null,
+    @ColumnInfo(name = "hold_action", defaultValue = "'more_info'")
+    val holdAction: String = TileTapAction.MoreInfo.storageValue,
+    @ColumnInfo(name = "hold_action_domain")
+    val holdActionDomain: String? = null,
+    @ColumnInfo(name = "hold_action_name")
+    val holdActionName: String? = null,
+    @ColumnInfo(name = "hold_action_data")
+    val holdActionData: String? = null,
+    @ColumnInfo(name = "tap_navigation_path")
+    val tapNavigationPath: String? = null,
+    @ColumnInfo(name = "tap_url")
+    val tapUrl: String? = null,
+    @ColumnInfo(name = "hold_navigation_path")
+    val holdNavigationPath: String? = null,
+    @ColumnInfo(name = "hold_url")
+    val holdUrl: String? = null,
 )
 
 val TileEntity.type: TileType
@@ -62,6 +86,9 @@ val TileEntity.type: TileType
 
 val TileEntity.tapActionType: TileTapAction
     get() = TileTapAction.fromStorageValue(tapAction)
+
+val TileEntity.holdActionType: TileTapAction
+    get() = TileTapAction.fromStorageValue(holdAction)
 
 val TileEntity.labelSourceType: TileTextSource
     get() = TileTextSource.fromStorageValue(labelSource)
@@ -74,7 +101,11 @@ val TileEntity.stateSourceEntityId: String
 
 val TileEntity.isSetup: Boolean
     get() {
+        val labelParts = decodeTileTextParts(labelPartsJson)
         val labelConfigured = when {
+            labelParts.isNotEmpty() -> labelParts.any { part ->
+                part.sourceType != TileTextSource.FIXED || !part.value.isNullOrBlank()
+            }
             type == TileType.Entity && labelSourceType != TileTextSource.FIXED -> true
             else -> label.isNotBlank()
         }
@@ -83,7 +114,10 @@ val TileEntity.isSetup: Boolean
                 TileType.Basic, TileType.Entity -> entityId.isNotBlank()
                 TileType.Template -> entityId.isNotBlank() ||
                     !stateTemplate.isNullOrBlank() ||
-                    tapActionType == TileTapAction.Custom ||
+                    tapActionType == TileTapAction.PerformAction ||
+                    tapActionType == TileTapAction.Navigate ||
+                    tapActionType == TileTapAction.Url ||
+                    tapActionType == TileTapAction.Assist ||
                     tapActionType == TileTapAction.None
             }
     }

@@ -31,8 +31,13 @@ class TileTypeTest {
     @Test
     fun `Given stored tap action when reading then map to matching action`() {
         assertEquals(TileTapAction.Automatic, TileTapAction.fromStorageValue("automatic"))
+        assertEquals(TileTapAction.Toggle, TileTapAction.fromStorageValue("toggle"))
         assertEquals(TileTapAction.MoreInfo, TileTapAction.fromStorageValue("more_info"))
-        assertEquals(TileTapAction.Custom, TileTapAction.fromStorageValue("custom"))
+        assertEquals(TileTapAction.PerformAction, TileTapAction.fromStorageValue("perform_action"))
+        assertEquals(TileTapAction.PerformAction, TileTapAction.fromStorageValue("custom"))
+        assertEquals(TileTapAction.Navigate, TileTapAction.fromStorageValue("navigate"))
+        assertEquals(TileTapAction.Url, TileTapAction.fromStorageValue("url"))
+        assertEquals(TileTapAction.Assist, TileTapAction.fromStorageValue("assist"))
         assertEquals(TileTapAction.None, TileTapAction.fromStorageValue("none"))
         assertEquals(TileTapAction.Automatic, TileTapAction.fromStorageValue("unknown"))
     }
@@ -50,6 +55,23 @@ class TileTypeTest {
                 entityId = "light.kitchen",
                 label = "",
                 labelSource = TileTextSource.NAME,
+            ).isSetup,
+        )
+    }
+
+    @Test
+    fun `Given entity tile with multipart label when checking setup then accept it`() {
+        assertTrue(
+            tile(
+                type = TileType.Entity,
+                entityId = "sensor.climate",
+                label = "",
+                labelPartsJson = encodeTileTextParts(
+                    listOf(
+                        TileTextPart.fixed("Temp: "),
+                        TileTextPart.state(),
+                    ),
+                ),
             ).isSetup,
         )
     }
@@ -73,6 +95,7 @@ class TileTypeTest {
         labelSource: TileTextSource = TileTextSource.FIXED,
         stateTemplate: String? = null,
         tapAction: TileTapAction = TileTapAction.Automatic,
+        labelPartsJson: String? = null,
     ) = TileEntity(
         tileId = "tile_1",
         added = true,
@@ -85,6 +108,7 @@ class TileTypeTest {
         shouldVibrate = false,
         authRequired = false,
         tileType = type.storageValue,
+        labelPartsJson = labelPartsJson,
         stateTemplate = stateTemplate,
         tapAction = tapAction.storageValue,
     )

@@ -7,12 +7,28 @@ sealed interface TileTapAction {
         override val storageValue = "automatic"
     }
 
+    data object Toggle : TileTapAction {
+        override val storageValue = "toggle"
+    }
+
     data object MoreInfo : TileTapAction {
         override val storageValue = "more_info"
     }
 
-    data object Custom : TileTapAction {
-        override val storageValue = "custom"
+    data object PerformAction : TileTapAction {
+        override val storageValue = "perform_action"
+    }
+
+    data object Navigate : TileTapAction {
+        override val storageValue = "navigate"
+    }
+
+    data object Url : TileTapAction {
+        override val storageValue = "url"
+    }
+
+    data object Assist : TileTapAction {
+        override val storageValue = "assist"
     }
 
     data object None : TileTapAction {
@@ -21,8 +37,12 @@ sealed interface TileTapAction {
 
     companion object {
         fun fromStorageValue(value: String): TileTapAction = when (value) {
+            Toggle.storageValue -> Toggle
             MoreInfo.storageValue -> MoreInfo
-            Custom.storageValue -> Custom
+            PerformAction.storageValue, "custom" -> PerformAction
+            Navigate.storageValue -> Navigate
+            Url.storageValue -> Url
+            Assist.storageValue -> Assist
             None.storageValue -> None
             else -> Automatic
         }

@@ -217,6 +217,22 @@ class WebSocketRepositoryImpl internal constructor(
         }
     }
 
+    override suspend fun callService(
+        domain: String,
+        service: String,
+        serviceData: Map<String, Any?>,
+        target: Map<String, Any?>,
+    ): Boolean {
+        val message = buildMap<String, Any?> {
+            put("type", "call_service")
+            put("domain", domain)
+            put("service", service)
+            if (serviceData.isNotEmpty()) put("service_data", serviceData)
+            if (target.isNotEmpty()) put("target", target)
+        }
+        return webSocketCore.sendMessage(message)?.success == true
+    }
+
     override suspend fun getConversation(speech: String): ConversationResponse? {
         // TODO: Send default locale of device with request.
         val socketResponse = webSocketCore.sendMessage(
